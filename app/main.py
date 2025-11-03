@@ -1,31 +1,26 @@
 import streamlit as st
 
-# Global page config
+# ---------------------------------------------------------
+# Global page configuration
+# ---------------------------------------------------------
+# This sets up the dashboard's title, layout, and sidebar state.
+# - page_title: Title shown in the browser tab
+# - layout: "wide" gives more horizontal space for charts
+# - initial_sidebar_state: "expanded" means sidebar is open by default
+#   (we won't use it for navigation, but later for slicers/filters)
 st.set_page_config(
     page_title="Cross-Market Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Sidebar navigation
-st.sidebar.title("Navigation")
-page = st.sidebar.radio(
-    "Go to",
-    [
-        "Overview",
-        "Equities",
-        "FX",
-        "Rates",
-        "Commodities",
-        "ETFs",
-        "Options & Volatility",
-        "Alternatives"
-    ]
-)
-
-# Import pages directly (relative to app/)
-from app.pages import overview
+# ---------------------------------------------------------
+# Import all page modules
+# ---------------------------------------------------------
+# Each page is a separate Python file inside the "pages" folder.
+# Every page file must define a `show()` function that renders its content.
 from pages import (
+    p1_overview,
     p2_equities,
     p3_fx,
     p4_rates,
@@ -35,9 +30,67 @@ from pages import (
     p8_alter
 )
 
-# Route to the right page
+# ---------------------------------------------------------
+# Custom CSS to normalize button sizes
+# ---------------------------------------------------------
+# Streamlit buttons normally size themselves based on text length.
+# This CSS forces all buttons to have the same width and height,
+# so they align neatly in the top ribbon.
+st.markdown(
+    """
+    <style>
+    div.stButton > button {
+        width: 100% !important;
+        height: 3em;
+        font-weight: 600;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# ---------------------------------------------------------
+# Top navigation ribbon
+# ---------------------------------------------------------
+# We create 8 equal-width columns for navigation buttons.
+# Each column will contain one button corresponding to a page.
+cols = st.columns(8)
+
+# Define the mapping between button labels and page names
+pages = [
+    ("Overview", "Overview"),
+    ("Equities", "Equities"),
+    ("FX", "FX"),
+    ("Rates", "Rates"),
+    ("Commodities", "Commodities"),
+    ("ETFs", "ETFs"),
+    ("Options & Volatility", "Options & Volatility"),
+    ("Alternatives", "Alternatives"),
+]
+
+# Variable to store which page is selected
+page = None
+
+# Render each button inside its column
+for col, (label, name) in zip(cols, pages):
+    with col:
+        if st.button(label):
+            page = name
+
+# ---------------------------------------------------------
+# Default page
+# ---------------------------------------------------------
+# If no button has been clicked yet (first load), default to "Overview".
+if page is None:
+    page = "Overview"
+
+# ---------------------------------------------------------
+# Page routing
+# ---------------------------------------------------------
+# Based on the selected page, call the corresponding `show()` function.
+# Each page module handles its own layout and content.
 if page == "Overview":
-    overview.show()
+    p1_overview.show()
 
 elif page == "Equities":
     p2_equities.show()
