@@ -23,35 +23,39 @@ page = st.sidebar.radio(
     ]
 )
 
+# Import pages directly (relative to app/)
+from app.pages import overview
+from pages import (
+    p2_equities,
+    p3_fx,
+    p4_rates,
+    p5_commo,
+    p6_etfs,
+    p7_options,
+    p8_alter
+)
+
 # Route to the right page
 if page == "Overview":
-    from app.pages import p1_overview as overview
     overview.show()
 
 elif page == "Equities":
-    from app.pages import p2_equities as equities
-    equities.show()
+    p2_equities.show()
 
 elif page == "FX":
-    from app.pages import p3_fx as fx
-    fx.show()
+    p3_fx.show()
 
 elif page == "Rates":
-    from app.pages import p4_rates as rates
-    rates.show()
+    p4_rates.show()
 
 elif page == "Commodities":
-    from app.pages import p5_commodities as commodities
-    commodities.show()
+    p5_commo.show()
 
 elif page == "ETFs":
-    from app.pages import p6_etfs as etfs
-    etfs.show()
+    p6_etfs.show()
 
 elif page == "Options & Volatility":
-    from app.pages import p7_options as options
-    options.show()
+    p7_options.show()
 
 elif page == "Alternatives":
-    from app.pages import p8_alternatives as alternatives
-    alternatives.show()
+    p8_alter.show()
