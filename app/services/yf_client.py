@@ -8,6 +8,7 @@ import pandas as pd
 # ---------------------------------------------------------
 # Responsibility: Fetch raw series from Yahoo Finance.
 # No transformations here beyond basic cleaning.
+# ---------------------------------------------------------
 
 
 # =========================================================
@@ -17,17 +18,44 @@ import pandas as pd
 
 def download_close_fxmatrix_series(ticker: str, period: str = "5d", interval: str = "1d") -> pd.Series:
     """
-    Download a 'Close' price series for a given FX ticker.
-    Returns a pandas Series indexed by datetime.
-    Used specifically for building the FX matrix (short horizon).
+    Download a short-horizon price series for a given FX ticker.
+
+    For FX, 'Close' and 'Adj Close' are equivalent (no dividends/splits).
+    Yahoo sometimes only provides 'Adj Close', so we prefer that if present,
+    otherwise fall back to 'Close'.
+
+    Handles both flat and MultiIndex column formats returned by yfinance.
+
+    Returns
+    -------
+    pd.Series
+        Series of prices indexed by datetime.
     """
     hist = yf.download(
         ticker, period=period, interval=interval,
         auto_adjust=True, progress=False
     )
-    if "Close" not in hist:
+
+    if hist.empty:
         return pd.Series(dtype=float)
-    return hist["Close"].dropna()
+
+    # Handle MultiIndex columns (common for FX tickers)
+    if isinstance(hist.columns, pd.MultiIndex):
+        if ("Adj Close", ticker) in hist.columns:
+            series = hist[("Adj Close", ticker)]
+        elif ("Close", ticker) in hist.columns:
+            series = hist[("Close", ticker)]
+        else:
+            return pd.Series(dtype=float)
+    else:
+        if "Adj Close" in hist.columns:
+            series = hist["Adj Close"]
+        elif "Close" in hist.columns:
+            series = hist["Close"]
+        else:
+            return pd.Series(dtype=float)
+
+    return series.dropna()
 
 
 # =========================================================
@@ -39,14 +67,40 @@ def download_close_fxmatrix_series(ticker: str, period: str = "5d", interval: st
 def download_fx_history_series(ticker: str, period: str = "max", interval: str = "1d") -> pd.Series:
     """
     Download long-range FX history for a given ticker.
+
     Default: full history ('max') at daily frequency.
-    Returns a pandas Series indexed by datetime.
-    Intended for the FX time series line chart.
+    For FX, 'Close' and 'Adj Close' are equivalent. We prefer 'Adj Close'
+    if available, otherwise fall back to 'Close'.
+
+    Handles both flat and MultiIndex column formats returned by yfinance.
+
+    Returns
+    -------
+    pd.Series
+        Series of prices indexed by datetime.
     """
     hist = yf.download(
         ticker, period=period, interval=interval,
         auto_adjust=True, progress=False
     )
-    if "Close" not in hist:
+
+    if hist.empty:
         return pd.Series(dtype=float)
-    return hist["Close"].dropna()
+
+    # Handle MultiIndex columns (common for FX tickers)
+    if isinstance(hist.columns, pd.MultiIndex):
+        if ("Adj Close", ticker) in hist.columns:
+            series = hist[("Adj Close", ticker)]
+        elif ("Close", ticker) in hist.columns:
+            series = hist[("Close", ticker)]
+        else:
+            return pd.Series(dtype=float)
+    else:
+        if "Adj Close" in hist.columns:
+            series = hist["Adj Close"]
+        elif "Close" in hist.columns:
+            series = hist["Close"]
+        else:
+            return pd.Series(dtype=float)
+
+    return series.dropna()

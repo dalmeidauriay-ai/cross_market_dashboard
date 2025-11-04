@@ -3,8 +3,10 @@
 import streamlit as st
 import plotly.express as px
 import pandas as pd
+from datetime import date
 
 from services.data_loader import load_fx_matrix, load_fx_timeseries
+from services.tickers_mapping import FX_PAIRS, FX_GROUPS
 
 # ---------------------------------------------------------
 # Page: FX (p3_fx)
@@ -62,6 +64,34 @@ def render_fx_timeseries(pair: str, freq: str):
     if not isinstance(series.index, pd.DatetimeIndex):
         series.index = pd.to_datetime(series.index)
 
+    # 🔹 NEW: Date range slicer
+    min_date = series.index.min().date()
+    max_date = series.index.max().date()
+    today = date.today()
+
+    start_date = st.date_input(
+        "Start date",
+        value=min_date,          # default earliest available
+        min_value=min_date,
+        max_value=today,
+        key="fx_start_date"
+    )
+    end_date = st.date_input(
+        "End date",
+        value=today,             # default today
+        min_value=min_date,
+        max_value=today,
+        key="fx_end_date"
+    )
+
+    if start_date > end_date:
+        st.error("Start date must be before end date.")
+        return
+
+    # Slice the series based on selected date range
+    mask = (series.index.date >= start_date) & (series.index.date <= end_date)
+    series = series.loc[mask]
+
     # Convert to DataFrame with explicit column names
     df = series.reset_index()
     df.columns = ["Date", "Price"]
@@ -81,12 +111,12 @@ def render_fx_timeseries(pair: str, freq: str):
 # Main show() entry point
 # =========================================================
 
+from services.tickers_mapping import FX_GROUPS, FX_PAIRS
+
 def show():
-    # Page header
     st.title("💱 FX matrix")
     st.caption("Spot and daily % change across selected currencies, cached for speed.")
 
-    # Sidebar controls
     with st.sidebar:
         st.subheader("FX controls")
         force_refresh = st.checkbox(
@@ -97,12 +127,23 @@ def show():
         st.info("If unchecked, the page loads the cached matrix from data/processed/.")
 
         st.subheader("Time Series controls")
-        pair = st.selectbox(
+
+        # 🔹 NEW: first select region
+        region = st.selectbox(
+            "Select FX region",
+            options=list(FX_GROUPS.keys()),
+            index=0,
+            key="fx_region"
+        )
+
+        # 🔹 NEW: then select pair within region
+        pair_name = st.selectbox(
             "Select FX pair",
-            ["EURUSD=X", "GBPUSD=X", "JPY=X", "CHFUSD=X"],
+            options=list(FX_GROUPS[region].keys()),
             index=0,
             key="fx_timeseries_pair"
         )
+
         freq = st.radio(
             "Select frequency",
             ["D", "W", "M", "Y"],
@@ -112,4 +153,4 @@ def show():
 
     # Render figures
     render_fx_matrix(force_refresh)
-    render_fx_timeseries(pair, freq)
+    render_fx_timeseries(pair_name, freq)

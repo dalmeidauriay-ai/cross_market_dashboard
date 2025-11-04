@@ -8,31 +8,43 @@
 # -------------------------
 # FX pairs
 # -------------------------
-FX_PAIRS = {
-    "USD/EUR": "EURUSD=X",
-    "USD/JPY": "JPY=X",
-    "GBP/USD": "GBPUSD=X",
-    "AUD/USD": "AUDUSD=X",
-    "NZD/USD": "NZDUSD=X",
-    "EUR/JPY": "EURJPY=X",
-    "GBP/JPY": "GBPJPY=X",
-    "EUR/GBP": "EURGBP=X",
-    "EUR/CAD": "EURCAD=X",
-    "EUR/SEK": "EURSEK=X",
-    "EUR/CHF": "EURCHF=X",
-    "EUR/HUF": "EURHUF=X",
-    "USD/CNY": "CNY=X",
-    "USD/HKD": "HKD=X",
-    "USD/SGD": "SGD=X",
-    "USD/INR": "INR=X",
-    "USD/MXN": "MXN=X",
-    "USD/PHP": "PHP=X",
-    "USD/IDR": "IDR=X",
-    "USD/THB": "THB=X",
-    "USD/MYR": "MYR=X",
-    "USD/ZAR": "ZAR=X",
-    "USD/RUB": "RUB=X",
+FX_GROUPS = {
+    "Majors": {
+        "USD/EUR": "EURUSD=X",
+        "USD/JPY": "JPY=X",
+        "GBP/USD": "GBPUSD=X",
+        "AUD/USD": "AUDUSD=X",
+        "NZD/USD": "NZDUSD=X",
+    },
+    "Europe": {
+        "EUR/JPY": "EURJPY=X",
+        "GBP/JPY": "GBPJPY=X",
+        "EUR/GBP": "EURGBP=X",
+        "EUR/CAD": "EURCAD=X",
+        "EUR/SEK": "EURSEK=X",
+        "EUR/CHF": "EURCHF=X",
+        "EUR/HUF": "EURHUF=X",
+    },
+    "Asia": {
+        "USD/CNY": "CNY=X",
+        "USD/HKD": "HKD=X",
+        "USD/SGD": "SGD=X",
+        "USD/INR": "INR=X",
+        "USD/IDR": "IDR=X",
+        "USD/THB": "THB=X",
+        "USD/MYR": "MYR=X",
+        "USD/PHP": "PHP=X",
+    },
+    "Emerging": {
+        "USD/MXN": "MXN=X",
+        "USD/ZAR": "ZAR=X",
+        "USD/RUB": "RUB=X",
+    },
 }
+
+# Flattened version if needed elsewhere
+FX_PAIRS = {pair: ticker for group in FX_GROUPS.values() for pair, ticker in group.items()}
+
 
 # -------------------------
 # Commodities (placeholder)

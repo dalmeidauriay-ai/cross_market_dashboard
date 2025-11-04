@@ -22,9 +22,10 @@ cross_market_dashboard/
 │  │  ├─ fred_client.py          # FRED fetch logic
 │  │  ├─ yf_client.py            # Yahoo Finance fetch logic
 │  │  ├─ transforms.py           # Cleaning, normalization, returns, % changes
+│  │  ├─ tickers_mapping.py      # Central dictionaries: tickers → friendly names (FX, equities, ETFs, commodities…)
 │  │
 │  ├─ config/                    # Configuration files
-│  │  ├─ symbols.py              # Tickers and friendly names per asset class
+│  │  ├─ symbols.py              # (Optional legacy) constants, may migrate into tickers_mapping
 │  │  ├─ style.py                # Fonts, colors, themes
 │
 ├─ data/                         # Local data cache
@@ -39,7 +40,7 @@ cross_market_dashboard/
 ├─ tests/                        # Unit tests (optional, for services/transforms)
 │
 ├─ README.md                     # Project overview
-├─ .gitignore                    # Ignore data/, .env, cache files
+├─ .gitignore                    # Ignore data/, __pycache__/, .env, cache files
 ├─ .env                          # API keys (FRED, etc.) — not committed
 
 
@@ -52,7 +53,8 @@ cross_market_dashboard/
 - [x] Create main.py as entry point
 - [ ] Add reusable components/ (charts, KPIs, layouts)
 - [ ] Add config/ for constants and style settings
-- [ ] Build services/ for data access (APIs, loaders)
+- [x] Build services/ for data access (APIs, loaders)
+- [x] Add tickers_mapping.py for centralized ticker dictionaries
 
 ✅ 2. Navigation & Layout
 - [x] Implement top ribbon navigation with buttons
@@ -105,6 +107,8 @@ cross_market_dashboard/
 - [ ] Build loaders in services/
 - [ ] Add transformation utilities
 - [ ] Implement caching for performance
+- [x] Centralize ticker dictionaries in tickers_mapping.py
+
 
 ✅ 5. Components
 - [ ] Reusable chart functions (line, bar, scatter, heatmap)
