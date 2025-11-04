@@ -6,7 +6,9 @@ def show():
     # Sidebar slicer
     stock = st.sidebar.selectbox(
         "Choose a stock:",
-        ["AAPL", "MSFT", "GOOG", "AMZN"]
+        ["AAPL", "MSFT", "GOOG", "AMZN"],
+        index=0,
+        key="equities_stock_select"
     )
 
     st.write(f"You selected: {stock}")

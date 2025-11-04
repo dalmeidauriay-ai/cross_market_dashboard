@@ -49,6 +49,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
+# ---------------------------------------------------------
+# Initialize session state for current page
+# ---------------------------------------------------------
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "Overview"
+
+
 # ---------------------------------------------------------
 # Top navigation ribbon
 # ---------------------------------------------------------
@@ -75,40 +83,35 @@ page = None
 for col, (label, name) in zip(cols, pages):
     with col:
         if st.button(label):
-            page = name
+            st.session_state.current_page = name # Update current page on button click
 
-# ---------------------------------------------------------
-# Default page
-# ---------------------------------------------------------
-# If no button has been clicked yet (first load), default to "Overview".
-if page is None:
-    page = "Overview"
 
 # ---------------------------------------------------------
 # Page routing
 # ---------------------------------------------------------
 # Based on the selected page, call the corresponding `show()` function.
 # Each page module handles its own layout and content.
-if page == "Overview":
+
+if st.session_state.current_page == "Overview":
     p1_overview.show()
 
-elif page == "Equities":
+elif st.session_state.current_page == "Equities":
     p2_equities.show()
 
-elif page == "FX":
+elif st.session_state.current_page == "FX":
     p3_fx.show()
 
-elif page == "Rates":
+elif st.session_state.current_page == "Rates":
     p4_rates.show()
 
-elif page == "Commodities":
+elif st.session_state.current_page == "Commodities":
     p5_commo.show()
 
-elif page == "ETFs":
+elif st.session_state.current_page == "ETFs":
     p6_etfs.show()
 
-elif page == "Options & Volatility":
+elif st.session_state.current_page == "Options & Volatility":
     p7_options.show()
 
-elif page == "Alternatives":
+elif st.session_state.current_page == "Alternatives":
     p8_alter.show()
