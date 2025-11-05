@@ -77,3 +77,41 @@ ETFS = {
     "EFA (MSCI EAFE ETF)": "EFA",
     "EEM (MSCI Emerging Markets ETF)": "EEM",
 }
+
+
+# -------------------------
+# Rates — FRED series mappings
+# Responsibility: Centralize all FRED tickers and friendly names
+# -------------------------
+
+# U.S. Treasury yields (constant maturity, daily, from FRED)
+US_YIELD_TICKERS = {
+    "DGS1MO": "U.S. 1M Treasury",
+    "DGS3MO": "U.S. 3M Treasury",
+    "DGS6MO": "U.S. 6M Treasury",
+    "DGS1":   "U.S. 1Y Treasury",
+    "DGS2":   "U.S. 2Y Treasury",
+    "DGS3":   "U.S. 3Y Treasury",
+    "DGS5":   "U.S. 5Y Treasury",
+    "DGS7":   "U.S. 7Y Treasury",
+    "DGS10":  "U.S. 10Y Treasury",
+    "DGS20":  "U.S. 20Y Treasury",
+    "DGS30":  "U.S. 30Y Treasury",
+}
+
+# OECD 10Y government bond yields (monthly, from FRED)
+OECD_YIELD_TICKERS = {
+    "IRLTLT01USM156N": "United States (OECD)",
+    "IRLTLT01DEM156N": "Germany",
+    "IRLTLT01FRM156N": "France",
+    "IRLTLT01ITM156N": "Italy",
+    "IRLTLT01GBM156N": "United Kingdom",
+    "IRLTLT01JPM156N": "Japan",
+    "IRLTLT01ESM156N": "Spain",
+    "IRLTLT01PTM156N": "Portugal",
+    "IRLTLT01GRM156N": "Greece",
+}
+
+# Convenience lists
+ALL_US_YIELDS = list(US_YIELD_TICKERS.keys())
+ALL_OECD_YIELDS = list(OECD_YIELD_TICKERS.keys())

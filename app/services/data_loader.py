@@ -14,12 +14,24 @@ from .yf_client import (
     download_close_fxmatrix_series,
     download_fx_history_series,
 )
+
+from .fred_client import (
+    download_us_yields,
+    download_oecd_yields,
+)
+
 from .transforms import (
     build_fx_spot_and_change,
     merge_fx_and_change,
     resample_fx_series,
 )
-from .tickers_mapping import FX_PAIRS
+
+from .tickers_mapping import (
+    FX_PAIRS,
+    US_YIELD_TICKERS,
+    OECD_YIELD_TICKERS,
+)
+
 
 
 # =========================================================
@@ -53,7 +65,16 @@ def load_fx_matrix(
     - If a cached CSV exists and force_refresh=False → load from cache.
     - Otherwise → fetch from Yahoo Finance, transform, cache, and return.
     """
-    tickers = tickers or FX_PAIRS
+
+    # 🔹 NEW: Restrict to a fixed set of currencies with clean labels
+    default_tickers = {
+        "EUR": "EURUSD=X",   # EUR/USD
+        "GBP": "GBPUSD=X",   # GBP/USD
+        "JPY": "JPY=X",      # USD/JPY
+        "CHF": "CHFUSD=X",   # CHF/USD
+        "USD": None,         # USD is the base reference
+    }
+    tickers = tickers or default_tickers
 
     # Fast path: load cached file if available
     if (not force_refresh) and os.path.exists(FX_MATRIX_PROCESSED_PATH):
@@ -66,6 +87,13 @@ def load_fx_matrix(
         period=period,
         interval=interval,
     )
+
+    # 🔹 Ensure rows/columns are labeled with raw currency codes (USD, EUR, GBP, JPY, CHF)
+    fx_matrix.index = list(tickers.keys())
+    fx_matrix.columns = list(tickers.keys())
+    change_matrix.index = list(tickers.keys())
+    change_matrix.columns = list(tickers.keys())
+
     merged = merge_fx_and_change(fx_matrix, change_matrix)
 
     # Ensure processed folder exists, then save cache
@@ -153,3 +181,71 @@ def load_fx_timeseries(pair_name: str, freq: str = "D") -> pd.Series:
 
     series = df[pair_name].dropna()
     return resample_fx_series(series, freq)
+
+
+
+
+# =========================================================
+# Cache directories for Rates
+# =========================================================
+
+RATES_DIR = os.path.join("data", "processed")
+US_YIELDS_PATH = os.path.join(RATES_DIR, "us_yields.csv")
+OECD_YIELDS_PATH = os.path.join(RATES_DIR, "oecd_yields.csv")
+os.makedirs(RATES_DIR, exist_ok=True)
+
+
+# =========================================================
+# U.S. Treasury Yields
+# =========================================================
+
+def load_us_yields(force_refresh: bool = False,
+                   start_date: str = "1990-01-01",
+                   end_date: str | None = None) -> pd.DataFrame:
+    """
+    Load U.S. Treasury yields (from cache if available, otherwise download).
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with datetime index and columns for each maturity.
+    """
+    if (not force_refresh) and os.path.exists(US_YIELDS_PATH):
+        return pd.read_csv(US_YIELDS_PATH, index_col=0, parse_dates=True)
+
+    df = download_us_yields(list(US_YIELD_TICKERS.keys()),
+                            start_date=start_date, end_date=end_date)
+
+    if df.empty:
+        raise ValueError("No U.S. yield data could be downloaded.")
+
+    df.to_csv(US_YIELDS_PATH)
+    return df
+
+
+# =========================================================
+# OECD 10Y Government Bond Yields
+# =========================================================
+
+def load_oecd_yields(force_refresh: bool = False,
+                     start_date: str = "1990-01-01",
+                     end_date: str | None = None) -> pd.DataFrame:
+    """
+    Load OECD 10Y government bond yields (from cache if available, otherwise download).
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with datetime index and columns for each country.
+    """
+    if (not force_refresh) and os.path.exists(OECD_YIELDS_PATH):
+        return pd.read_csv(OECD_YIELDS_PATH, index_col=0, parse_dates=True)
+
+    df = download_oecd_yields(list(OECD_YIELD_TICKERS.keys()),
+                              start_date=start_date, end_date=end_date)
+
+    if df.empty:
+        raise ValueError("No OECD yield data could be downloaded.")
+
+    df.to_csv(OECD_YIELDS_PATH)
+    return df

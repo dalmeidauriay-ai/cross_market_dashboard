@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------
 # FX transforms
@@ -42,12 +43,19 @@ def build_fx_spot_and_change(ticker_map: dict, fetch_fn, period: str = "5d", int
 
     fetch_fn: callable(ticker, period, interval) -> pd.Series (Close series)
     """
-    usd_per_ccy_last = {"USD": 1.0}
-    usd_per_ccy_prev = {"USD": 1.0}
-    currencies = ["USD"]
+    usd_per_ccy_last = {}
+    usd_per_ccy_prev = {}
+    currencies = []
+
+    # Always include USD as base reference
+    usd_per_ccy_last["USD"] = 1.0
+    usd_per_ccy_prev["USD"] = 1.0
+    currencies.append("USD")
 
     # Step 1: Normalize each currency to USD per unit
     for ccy, ticker in ticker_map.items():
+        if ccy == "USD":
+            continue  # already handled
         try:
             raw = fetch_fn(ticker, period=period, interval=interval)
             if raw.empty:
@@ -100,7 +108,6 @@ def build_fx_spot_and_change(ticker_map: dict, fetch_fn, period: str = "5d", int
 
     return fx_matrix, change_matrix
 
-
 def merge_fx_and_change(fx_matrix: pd.DataFrame, change_matrix: pd.DataFrame) -> pd.DataFrame:
     """
     Merge FX spot rates and % change into a single DataFrame with formatted strings.
@@ -141,3 +148,106 @@ def resample_fx_series(series: pd.Series, freq: str) -> pd.Series:
     if freq == "D":
         return series
     return series.resample(freq).last().dropna()
+
+
+
+
+
+
+
+# ---------------------------------------------------------
+# Transforms for Rates (FRED data)
+# ---------------------------------------------------------
+# Responsibility: Take raw FRED series and produce
+# visualization‑ready DataFrames or Matplotlib figures.
+# ---------------------------------------------------------
+
+
+# =========================================================
+# Generic line chart transform
+# =========================================================
+def plot_timeseries_lines(dataframe: pd.DataFrame, title: str,
+                          y_label: str = "Yield (%)",
+                          names: dict | None = None):
+    """
+    Plot time series lines with clean names and bigger fonts.
+    """
+    if names:
+        dataframe = dataframe.rename(columns=names)
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    dataframe.plot(ax=ax)
+    ax.set_title(title, fontsize=18)
+    ax.set_xlabel("Date", fontsize=14)
+    ax.set_ylabel(y_label, fontsize=14)
+    ax.tick_params(axis="both", labelsize=12)
+    ax.legend(fontsize=12, ncol=2)
+    fig.tight_layout()
+    return fig
+
+
+# =========================================================
+# OECD snapshot: horizontal bar
+# =========================================================
+def plot_oecd_snapshot(dataframe: pd.DataFrame, title: str,
+                       y_label: str = "Yield (%)",
+                       names: dict | None = None):
+    """
+    Plot OECD 10Y yields snapshot as a horizontal bar chart.
+    """
+    if names:
+        dataframe = dataframe.rename(columns=names)
+
+    latest = dataframe.ffill().iloc[-1].sort_values(ascending=True)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    latest.plot(kind="barh", ax=ax, color="skyblue", edgecolor="black")
+    ax.set_title(title, fontsize=18)
+    ax.set_xlabel(y_label, fontsize=14)
+    ax.set_ylabel("")
+    ax.tick_params(axis="both", labelsize=12)
+
+    for i, v in enumerate(latest):
+        ax.text(v + 0.05, i, f"{v:.2f}", va="center", fontsize=10)
+
+    fig.tight_layout()
+    return fig
+
+
+# =========================================================
+# U.S. yield curve snapshot
+# =========================================================
+def plot_us_yield_curve(dataframe: pd.DataFrame, title: str,
+                        y_label: str = "Yield (%)",
+                        names: dict | None = None):
+    """
+    Plot the latest U.S. yield curve snapshot as a line chart.
+    """
+    if names:
+        dataframe = dataframe.rename(columns=names)
+
+    latest = dataframe.ffill().iloc[-1]
+
+    maturity_order = [
+        "U.S. 1M Treasury", "U.S. 3M Treasury", "U.S. 6M Treasury",
+        "U.S. 1Y Treasury", "U.S. 2Y Treasury", "U.S. 3Y Treasury",
+        "U.S. 5Y Treasury", "U.S. 7Y Treasury", "U.S. 10Y Treasury",
+        "U.S. 20Y Treasury", "U.S. 30Y Treasury"
+    ]
+    latest = latest.reindex(maturity_order)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(latest.index, latest.values, marker="o", linestyle="-", color="blue")
+    ax.set_title(title, fontsize=18)
+    ax.set_ylabel(y_label, fontsize=14)
+    ax.set_xlabel("Maturity", fontsize=14)
+    ax.tick_params(axis="both", labelsize=12)
+
+    # Rotate x-axis labels
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+    for i, v in enumerate(latest.values):
+        ax.text(i, v + 0.05, f"{v:.2f}", ha="center", fontsize=10)
+
+    fig.tight_layout()
+    return fig
