@@ -14,6 +14,28 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
+# ---------------------------------------------------------
+# Data refresh on app startup
+# ---------------------------------------------------------
+# Each time the dashboard is launched, we run a lightweight
+# refresh check. This looks at refresh_tracker.csv under
+# data/processed/ and decides whether to update cached CSVs.
+# - Historical datasets (FX_historical.csv) → refresh once per day
+# - Snapshot datasets (FX_rate_matrix.csv, us_yields.csv, oecd_yields.csv) → refresh if older than 1 hour
+# The refresh logic updates both the CSVs and the tracker timestamps.
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from jobs.refresh_data import run_refresh
+# Safe refresh — won’t break the app if the tracker is missing or invalid
+try:
+  from jobs.refresh_data import run_refresh
+  run_refresh()
+  st.sidebar.success("Data refreshed via tracker rules.")
+except Exception as e:
+  st.sidebar.warning(f"Refresh skipped: {e}")
+
+
 # ---------------------------------------------------------
 # Import all page modules
 # ---------------------------------------------------------
@@ -104,7 +126,7 @@ elif st.session_state.current_page == "FX":
 elif st.session_state.current_page == "Rates":
     p4_rates.show()
 
-elif st.session_state.current_page == "Commodities":
+elif st.session_state.current_page == "Commo":
     p5_commo.show()
 
 elif st.session_state.current_page == "ETFs":
@@ -115,3 +137,6 @@ elif st.session_state.current_page == "Options & Volatility":
 
 elif st.session_state.current_page == "Alternatives":
     p8_alter.show()
+
+
+

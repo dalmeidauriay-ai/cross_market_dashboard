@@ -3,6 +3,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import streamlit as st
 
 # ---------------------------------------------------------
 # FX transforms
@@ -150,6 +151,51 @@ def resample_fx_series(series: pd.Series, freq: str) -> pd.Series:
     return series.resample(freq).last().dropna()
 
 
+# =========================================================
+# Page: FX (p3_fx) — Transformation: Build consolidated FX history
+# Purpose: Download long-range FX history for all currency pairs,
+# align them on a common datetime index, and return a wide DataFrame
+# with one column per FX pair (friendly name).
+# =========================================================
+
+# Imports required for FX history transformation
+from .tickers_mapping import FX_PAIRS
+from .yf_client import download_fx_history_series
+
+def build_fx_history_series() -> pd.DataFrame:
+    """
+    Build consolidated FX history for all pairs in FX_PAIRS.
+
+    Workflow:
+    - Loop through all FX pairs defined in FX_PAIRS.
+    - Download full historical series from Yahoo Finance.
+    - Keep only valid Series with a DateTime index.
+    - Align all series on their datetime index.
+    - Return a wide DataFrame with one column per FX pair (friendly name).
+
+    Returns
+    -------
+    pd.DataFrame
+        Wide DataFrame with one column per FX pair (friendly name).
+    """
+    all_series = {}
+    for pair_name, ticker in FX_PAIRS.items():
+        series = download_fx_history_series(ticker, period="max", interval="1d")
+
+        # ✅ Only keep if it's a proper Series with a DateTime index
+        if isinstance(series, pd.Series) and not series.empty:
+            # Friendly name for the column (e.g. "USD/EUR")
+            series.name = pair_name
+            all_series[pair_name] = series
+            print(f"✔ Added {pair_name} ({ticker}) with {len(series)} rows")
+        else:
+            print(f"⚠️ Skipping {pair_name} ({ticker}) — no data returned")
+
+    if not all_series:
+        raise ValueError("No FX history could be downloaded — check tickers or API.")
+
+    # Align all series on their datetime index
+    return pd.concat(all_series.values(), axis=1)
 
 
 
@@ -166,6 +212,7 @@ def resample_fx_series(series: pd.Series, freq: str) -> pd.Series:
 # =========================================================
 # Generic line chart transform
 # =========================================================
+
 def plot_timeseries_lines(dataframe: pd.DataFrame, title: str,
                           y_label: str = "Yield (%)",
                           names: dict | None = None):

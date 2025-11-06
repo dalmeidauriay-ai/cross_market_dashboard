@@ -1,1 +1,4 @@
-"data/processed/*.csv" 
+data/processed/*.csv
+data/raw/*.csv
+*.env
+__pycache__/
