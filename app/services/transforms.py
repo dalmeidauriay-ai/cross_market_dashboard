@@ -6,6 +6,191 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 # ---------------------------------------------------------
+# Transforms for Stocks (Yahoo Finance data)
+# ---------------------------------------------------------
+# Responsibility: Take raw stock Close series and produce
+# visualization‑ready DataFrames or Matplotlib figures.
+# ---------------------------------------------------------
+
+# =========================================================
+# Snapshot table transform
+# =========================================================
+def compute_stock_snapshot_metrics(snapshot_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute snapshot metrics for a stock from current year closes:
+    - Price (last close)
+    - Daily % change (t-1 vs t-2)
+    - Weekly % change (t-1 vs t-5)
+    - Monthly % change (t-1 vs t-21)
+    - YTD % change (last vs first of year)
+    """
+    closes = snapshot_df["Price"].ffill()
+    if len(closes) < 2:
+        return pd.DataFrame()
+
+    price = closes.iloc[-1]
+    daily = (closes.iloc[-1] / closes.iloc[-2] - 1) * 100 if len(closes) >= 2 else np.nan
+    weekly = (closes.iloc[-1] / closes.iloc[-5] - 1) * 100 if len(closes) >= 5 else np.nan
+    monthly = (closes.iloc[-1] / closes.iloc[-21] - 1) * 100 if len(closes) >= 21 else np.nan
+    ytd = (closes.iloc[-1] / closes.iloc[0] - 1) * 100 if len(closes) >= 2 else np.nan
+
+    return pd.DataFrame({
+        "Price": [price],
+        "DailyChange": [daily],
+        "WeeklyChange": [weekly],
+        "MonthlyChange": [monthly],
+        "YTDChange": [ytd],
+    })
+
+
+# =========================================================
+# Single stock performance timeseries
+# =========================================================
+def compute_stock_timeseries(history_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute enriched time series for a single stock:
+    - Price
+    - Return (% change)
+    - Log return
+    - 10-day moving average
+    - 30-day moving average
+    """
+    price = history_df["Price"].ffill()
+    returns = price.pct_change()
+    log_returns = np.log(price / price.shift(1))
+    ma10 = price.rolling(10).mean()
+    ma30 = price.rolling(30).mean()
+
+    return pd.DataFrame({
+        "Price": price,
+        "Return": returns,
+        "LogReturn": log_returns,
+        "MA10": ma10,
+        "MA30": ma30,
+    })
+
+
+def plot_stock_timeseries(dataframe: pd.DataFrame, title: str,
+                          y_label: str = "Price / Return",
+                          series: list[str] | None = None):
+    """
+    Plot a single stock time series with optional selection of series
+    (Price, Return, LogReturn, MA10, MA30).
+    """
+    if series:
+        dataframe = dataframe[series]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    dataframe.plot(ax=ax)
+    ax.set_title(title, fontsize=18)
+    ax.set_xlabel("Date", fontsize=14)
+    ax.set_ylabel(y_label, fontsize=14)
+    ax.tick_params(axis="both", labelsize=12)
+    ax.legend(fontsize=12)
+    fig.tight_layout()
+    return fig
+
+
+# Compute rolling annualized return & volatility
+
+def compute_rolling_stats(price_series: pd.Series, windows=[252, 756, 2520], log_returns=True):
+    """
+    Compute rolling annualized mean return and volatility for a given price series.
+    
+    Parameters:
+        price_series (pd.Series): Daily price series (indexed by Date).
+        windows (list): List of rolling window lengths in trading days (default: [252, 756, 2520]).
+        log_returns (bool): If True, use log returns; if False, use arithmetic returns.
+    
+    Returns:
+        pd.DataFrame: DataFrame with columns for returns and rolling stats.
+    """
+    df = pd.DataFrame({"Price": price_series})
+    if log_returns:
+        df["ret"] = np.log(df["Price"] / df["Price"].shift(1))
+    else:
+        df["ret"] = df["Price"].pct_change()
+
+    for w in windows:
+        df[f"roll_mean_{w}"] = df["ret"].rolling(w).mean() * 252
+        df[f"roll_vol_{w}"]  = df["ret"].rolling(w).std() * np.sqrt(252)
+
+    return df
+
+def compute_cumulative_returns(price_series: pd.Series, log_returns=True, freq='D'):
+    """
+    Compute cumulative returns since the start of the series, optionally resampled to a frequency.
+    
+    Parameters:
+        price_series (pd.Series): Daily price series.
+        log_returns (bool): If True, use log cumulative returns; if False, use arithmetic.
+        freq (str): Resampling frequency ('D', 'W', 'M', 'Y').
+    
+    Returns:
+        pd.Series: Cumulative returns series.
+    """
+    # Resample if needed
+    if freq != 'D':
+        price_series = price_series.resample(freq).last().dropna()
+    
+    if price_series.empty:
+        return pd.Series(dtype=float)
+    
+    price_start = price_series.iloc[0]
+    if log_returns:
+        cum_ret = np.log(price_series / price_start)
+    else:
+        cum_ret = (price_series / price_start) - 1
+    return cum_ret
+def compute_stock_comparator_timeseries(history_dict: dict,
+                                        log: bool = False) -> pd.DataFrame:
+    """
+    Compute returns or log returns for multiple stocks side by side.
+    history_dict: {name: DataFrame with 'Price'}
+    log: if True, compute log returns instead of simple returns
+    """
+    data = {}
+    for name, df in history_dict.items():
+        price = df["Price"].ffill()
+        if log:
+            data[name] = np.log(price / price.shift(1))
+        else:
+            data[name] = price.pct_change()
+    return pd.DataFrame(data)
+
+
+def plot_stock_comparator(cum_returns_dict: dict, log_returns: bool, title: str, benchmarks: list = []):
+    """
+    Plot cumulative returns for multiple stocks and benchmarks.
+    cum_returns_dict: {name: Series of cumulative returns}
+    log_returns: whether log or arithmetic
+    benchmarks: list of benchmark names to style differently
+    """
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for name, cum_ret in cum_returns_dict.items():
+        if name in benchmarks:
+            (cum_ret * 100).plot(ax=ax, label=name, linestyle='--', linewidth=2) if not log_returns else cum_ret.plot(ax=ax, label=name, linestyle='--', linewidth=2)
+        else:
+            if log_returns:
+                cum_ret.plot(ax=ax, label=name)
+            else:
+                (cum_ret * 100).plot(ax=ax, label=name)
+    ax.set_title(title, fontsize=18)
+    ax.set_xlabel("Date", fontsize=14)
+    if log_returns:
+        ax.set_ylabel("Cumulative Log Return", fontsize=14)
+    else:
+        ax.set_ylabel("Cumulative Return (%)", fontsize=14)
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}%'))
+    ax.axhline(0, color='black', linestyle='--')
+    ax.legend(fontsize=12, loc='upper left', bbox_to_anchor=(1, 1))
+    fig.tight_layout()
+    return fig
+
+
+
+
+# ---------------------------------------------------------
 # FX transforms
 # ---------------------------------------------------------
 # Responsibility: Convert raw FX quotes to USD-per-CCY,
@@ -30,10 +215,10 @@ def normalize_to_usd_per_unit(ccy: str, ticker: str, series: pd.Series) -> pd.Se
     """
     if ccy.upper() == "JPY" and ticker.upper() == "JPY=X":
         # JPY=X is USD/JPY → invert to get USD per 1 JPY
-        return (1.0 / series).dropna()
+        return (1.0 / series).ffill()
     else:
         # Assume ticker is CCY/USD → already USD per CCY
-        return series.dropna()
+        return series.ffill()
 
 
 def build_fx_spot_and_change(ticker_map: dict, fetch_fn, period: str = "5d", interval: str = "1d"):
@@ -148,7 +333,7 @@ def resample_fx_series(series: pd.Series, freq: str) -> pd.Series:
     """
     if freq == "D":
         return series
-    return series.resample(freq).last().dropna()
+    return series.resample(freq).last().ffill()
 
 
 # =========================================================
@@ -185,6 +370,7 @@ def build_fx_history_series() -> pd.DataFrame:
         # ✅ Only keep if it's a proper Series with a DateTime index
         if isinstance(series, pd.Series) and not series.empty:
             # Friendly name for the column (e.g. "USD/EUR")
+            series = series.ffill()
             series.name = pair_name
             all_series[pair_name] = series
             print(f"✔ Added {pair_name} ({ticker}) with {len(series)} rows")

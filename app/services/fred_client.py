@@ -1,8 +1,6 @@
 # app/services/fred_client.py
 
 import pandas as pd
-import pandas_datareader.data as web
-import warnings
 
 # ---------------------------------------------------------
 # FRED client helpers
@@ -11,11 +9,7 @@ import warnings
 # No transformations here beyond basic cleaning (e.g. ffill).
 # ---------------------------------------------------------
 
-# Suppress noisy warnings from pandas_datareader
-warnings.simplefilter(action="ignore", category=FutureWarning)
-
-
-# =========================================================
+# ---------------------------------------------------------
 # Generic FRED downloader
 # =========================================================
 
@@ -44,7 +38,13 @@ def download_fred_series(series_names, start_date="1990-01-01", end_date=None) -
     frames = []
     for s in series_names:
         try:
-            df = web.DataReader(s, "fred", start=start_date, end=end_date)
+            url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={s}"
+            df = pd.read_csv(url, index_col=0, parse_dates=True)
+            df.columns = [s]
+            # Filter by date
+            df = df[df.index >= pd.to_datetime(start_date)]
+            if end_date:
+                df = df[df.index <= pd.to_datetime(end_date)]
             frames.append(df)
         except Exception as e:
             # We don't raise here — just skip and continue

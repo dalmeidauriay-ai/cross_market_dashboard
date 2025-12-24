@@ -12,6 +12,10 @@ from app.services.data_loader import (
     load_us_yields,
     load_oecd_yields,
     refresh_fx_history,   # ✅ new helper replaces build_fx_history
+    refresh_stock_history,
+    refresh_stock_snapshot,
+    refresh_indices_snapshot,
+    refresh_indices_history,
 )
 
 TRACKER_PATH = os.path.join("data", "processed", "refresh_tracker.csv")
@@ -69,6 +73,16 @@ def run_refresh():
         refresh_fx_history()  # ✅ cleaner call
         tracker.loc["FX_historical.csv", "last_update"] = datetime.now()
 
+    if should_refresh(tracker.loc["stocks_history.csv", "last_update"], "historical"):
+        print("Refreshing stocks historical...")
+        refresh_stock_history()
+        tracker.loc["stocks_history.csv", "last_update"] = datetime.now()
+
+    if should_refresh(tracker.loc["indices_historical.csv", "last_update"], "historical"):
+        print("Refreshing indices historical...")
+        refresh_indices_history()
+        tracker.loc["indices_historical.csv", "last_update"] = datetime.now()
+
     # Snapshot datasets
     if should_refresh(tracker.loc["FX_rate_matrix.csv", "last_update"], "snapshot"):
         print("Refreshing FX matrix snapshot...")
@@ -84,6 +98,16 @@ def run_refresh():
         print("Refreshing OECD yields snapshot...")
         load_oecd_yields(force_refresh=True)
         tracker.loc["oecd_yields.csv", "last_update"] = datetime.now()
+
+    if should_refresh(tracker.loc["stocks_snapshot.csv", "last_update"], "snapshot"):
+        print("Refreshing stocks snapshot...")
+        refresh_stock_snapshot()
+        tracker.loc["stocks_snapshot.csv", "last_update"] = datetime.now()
+
+    if should_refresh(tracker.loc["indices_snapshot.csv", "last_update"], "snapshot"):
+        print("Refreshing indices snapshot...")
+        refresh_indices_snapshot()
+        tracker.loc["indices_snapshot.csv", "last_update"] = datetime.now()
 
     # Save tracker
     save_tracker(tracker)

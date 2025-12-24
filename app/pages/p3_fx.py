@@ -40,7 +40,7 @@ def render_fx_matrix(force_refresh: bool):
     merged = load_fx_matrix(force_refresh=force_refresh)
     st.subheader("Spot + % change matrix")
     styled = merged.style.map(_highlight_changes)
-    st.dataframe(styled, use_container_width=True)
+    st.dataframe(styled)
 
     with st.expander("Show raw values"):
         st.write(merged)

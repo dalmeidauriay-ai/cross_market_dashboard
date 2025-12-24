@@ -1,4 +1,12 @@
-data/processed/*.csv
-data/raw/*.csv
-*.env
+# Ignore all CSV files anywhere in the project
+*.csv
+
+# Ignore all content within data folders
+data/
+app/data/
+
+# Environment and Python system files
+.env
 __pycache__/
+.vscode/
+.DS_Store

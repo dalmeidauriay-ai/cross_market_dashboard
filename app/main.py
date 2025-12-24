@@ -26,7 +26,6 @@ st.set_page_config(
 # The refresh logic updates both the CSVs and the tracker timestamps.
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from jobs.refresh_data import run_refresh
 # Safe refresh — won’t break the app if the tracker is missing or invalid
 try:
   from jobs.refresh_data import run_refresh
@@ -43,14 +42,12 @@ except Exception as e:
 # Every page file must define a `show()` function that renders its content.
 from pages import (
     p1_overview,
-    p2_equities,
+    p2_stocks,
     p3_fx,
     p4_rates,
     p5_commo,
-    p6_etfs,
-    p7_options,
-    p8_alter
 )
+
 
 # ---------------------------------------------------------
 # Custom CSS to normalize button sizes
@@ -82,24 +79,18 @@ if "current_page" not in st.session_state:
 # ---------------------------------------------------------
 # Top navigation ribbon
 # ---------------------------------------------------------
-# We create 8 equal-width columns for navigation buttons.
+# We create 5 equal-width columns for navigation buttons.
 # Each column will contain one button corresponding to a page.
-cols = st.columns(8)
+cols = st.columns(5)
 
 # Define the mapping between button labels and page names
 pages = [
     ("Overview", "Overview"),
-    ("Equities", "Equities"),
+    ("Stocks", "Stocks"),
     ("FX", "FX"),
     ("Rates", "Rates"),
     ("Commodities", "Commodities"),
-    ("ETFs", "ETFs"),
-    ("Options & Volatility", "Options & Volatility"),
-    ("Alternatives", "Alternatives"),
 ]
-
-# Variable to store which page is selected
-page = None
 
 # Render each button inside its column
 for col, (label, name) in zip(cols, pages):
@@ -117,8 +108,8 @@ for col, (label, name) in zip(cols, pages):
 if st.session_state.current_page == "Overview":
     p1_overview.show()
 
-elif st.session_state.current_page == "Equities":
-    p2_equities.show()
+elif st.session_state.current_page == "Stocks":
+    p2_stocks.show()
 
 elif st.session_state.current_page == "FX":
     p3_fx.show()
@@ -126,17 +117,10 @@ elif st.session_state.current_page == "FX":
 elif st.session_state.current_page == "Rates":
     p4_rates.show()
 
-elif st.session_state.current_page == "Commo":
+elif st.session_state.current_page == "Commodities":
     p5_commo.show()
 
-elif st.session_state.current_page == "ETFs":
-    p6_etfs.show()
 
-elif st.session_state.current_page == "Options & Volatility":
-    p7_options.show()
-
-elif st.session_state.current_page == "Alternatives":
-    p8_alter.show()
 
 
 
