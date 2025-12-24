@@ -20,6 +20,7 @@ from .transforms import (
     compute_stock_snapshot_metrics,
     compute_stock_timeseries,
     compute_stock_comparator_timeseries,
+    compute_cumulative_returns,
 )
 
 from .yf_client import (

@@ -15,7 +15,7 @@ from app.services.transforms import (
     compute_cumulative_returns,
     plot_stock_comparator,
 )
-from app.services.tickers_mapping import STOCK_GROUPS, INDEX_TICKERS, STOCK_CURRENCIES, INDICES
+from app.services.tickers_mapping import STOCK_GROUPS, INDEX_TICKERS, STOCK_CURRENCIES, INDICES, STOCK_TICKERS
 
 
 # Mapping countries to regions for benchmark filtering
@@ -307,12 +307,11 @@ def show():
             # Get countries from selected stocks
             countries = set()
             for stock in selected_stocks:
-                if stock in STOCK_TICKERS:
-                    country = stock.split('_')[-1]
-                    countries.add(country)
+                country = stock.split('_')[-1]
+                countries.add(country)
             
             # Filter benchmark options based on countries
-            available_regions = set(COUNTRY_TO_REGION.get(country, '') for country in countries)
+            available_regions = set(COUNTRY_TO_REGION.get(country, '') for country in countries if country in COUNTRY_TO_REGION)
             benchmark_options = []
             for region in available_regions:
                 if region in INDICES:
