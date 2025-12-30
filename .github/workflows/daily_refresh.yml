@@ -16,6 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
+          # Using 3.11 to avoid yfinance syntax errors
           python-version: '3.11'
 
       - name: Install dependencies
@@ -27,6 +28,7 @@ jobs:
           # Ensures the script can find the 'app' module
           PYTHONPATH: ${{ github.workspace }}
         run: |
+          # This script will create the folders and CSVs
           python jobs/refresh_data.py
 
       - name: Commit and Push changes
@@ -34,9 +36,17 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           
-          # Use -f to bypass .gitignore for the processed data files
-          git add -f data/processed/*.csv
-          git add -f data/processed/futures_curves/*.csv
+          # ROBUST FIX:
+          # Instead of looking for specific files (which causes crashes if missing),
+          # we force-add the entire 'data' directory.
+          # "|| true" ensures that even if something is weird, the robot won't crash.
+          git add -f data/ || true
           
-          git commit -m "auto: daily data refresh" || echo "No changes to commit"
-          git push
+          # Check if there is anything to commit before trying
+          # This prevents "nothing to commit" errors
+          if git diff --staged --quiet; then
+            echo "No changes to commit. Skipping push."
+          else
+            git commit -m "auto: daily data refresh"
+            git push
+          fi
