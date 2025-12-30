@@ -11,7 +11,7 @@ from app.services.data_loader import (
     load_fx_matrix,
     load_us_yields,
     load_oecd_yields,
-    refresh_fx_history,   # ✅ new helper replaces build_fx_history
+    refresh_fx_history,
     refresh_stock_history,
     refresh_stock_snapshot,
     refresh_indices_snapshot,
@@ -22,131 +22,97 @@ from app.services.data_loader import (
     refresh_commodity_futures,
 )
 
-TRACKER_PATH = os.path.join("data", "processed", "refresh_tracker.csv")
-
+# Ensure paths are absolute relative to the project root
+BASE_DIR = os.getcwd()
+PROCESSED_DIR = os.path.join(BASE_DIR, "data", "processed")
+FUTURES_DIR = os.path.join(PROCESSED_DIR, "futures_curves")
+TRACKER_PATH = os.path.join(PROCESSED_DIR, "refresh_tracker.csv")
 
 # =========================================================
 # Load & Save tracker
 # =========================================================
 def load_tracker() -> pd.DataFrame:
+    # ROBUST FIX: Create directory if missing
+    os.makedirs(FUTURES_DIR, exist_ok=True)
+    
+    if not os.path.exists(TRACKER_PATH):
+        print("DEBUG: Tracker not found. Creating a fresh tracker...")
+        # Create an empty tracker with the required structure
+        columns = ["csv_name", "last_update"]
+        df = pd.DataFrame(columns=columns).set_index("csv_name")
+        return df
+
     tracker = pd.read_csv(TRACKER_PATH)
-    # Clean up any stray spaces or semicolons in column names
     tracker.columns = tracker.columns.str.strip().str.replace(";", "")
-    # Parse the last_update column into proper datetimes
     tracker["last_update"] = pd.to_datetime(tracker["last_update"])
-    # Use csv_name as the index
     tracker = tracker.set_index("csv_name")
     return tracker
 
-
 def save_tracker(tracker: pd.DataFrame):
     tracker.to_csv(TRACKER_PATH)
-
+    print(f"SUCCESS: Tracker saved to {TRACKER_PATH}")
 
 # =========================================================
 # Refresh rules
 # =========================================================
-def should_refresh(last_update: pd.Timestamp, mode: str) -> bool:
-    """
-    Decide whether to refresh based on mode:
-    - mode="historical": refresh if last update < today
-    - mode="snapshot": refresh if last update > 1h ago
-    """
+def should_refresh(tracker, csv_name, mode) -> bool:
     now = datetime.now()
-
+    
+    # If key doesn't exist in tracker, we MUST refresh
+    if csv_name not in tracker.index:
+        return True
+        
+    last_update = tracker.loc[csv_name, "last_update"]
     if pd.isna(last_update):
         return True
 
-    if mode == "historical":
+    if mode == "historical" or mode == "daily":
         return last_update.date() < now.date()
     elif mode == "snapshot":
         return (now - last_update.to_pydatetime()) > timedelta(hours=1)
-    else:
-        return False
-
+    elif mode == "weekly":
+        return (now - last_update.to_pydatetime()) > timedelta(days=7)
+    return False
 
 # =========================================================
 # Main refresh orchestrator
 # =========================================================
 def run_refresh():
+    print(f"DEBUG: Starting refresh in {BASE_DIR}")
     tracker = load_tracker()
 
-    # Historical datasets
-    if should_refresh(tracker.loc["FX_historical.csv", "last_update"], "historical"):
-        print("Refreshing FX historical...")
-        refresh_fx_history()  # ✅ cleaner call
-        tracker.loc["FX_historical.csv", "last_update"] = datetime.now()
+    # Define tasks: (csv_name, refresh_func, mode)
+    tasks = [
+        ("FX_historical.csv", refresh_fx_history, "historical"),
+        ("stocks_history.csv", refresh_stock_history, "historical"),
+        ("indices_historical.csv", refresh_indices_history, "historical"),
+        ("us_yields.csv", lambda: load_us_yields(force_refresh=True), "historical"),
+        ("oecd_yields.csv", lambda: load_oecd_yields(force_refresh=True), "historical"),
+        ("FX_rate_matrix.csv", lambda: load_fx_matrix(force_refresh=True), "snapshot"),
+        ("stocks_snapshot.csv", refresh_stock_snapshot, "snapshot"),
+        ("indices_snapshot.csv", refresh_indices_snapshot, "snapshot"),
+        ("cross_asset_snapshot.csv", refresh_cross_asset_snapshot, "snapshot"),
+        ("monetary_policy_check", refresh_monetary_policy, "weekly"),
+        ("hist_metals.csv", refresh_commodity_history, "daily"),
+        ("futures_curves_check", refresh_commodity_futures, "daily")
+    ]
 
-    if should_refresh(tracker.loc["stocks_history.csv", "last_update"], "historical"):
-        print("Refreshing stocks historical...")
-        refresh_stock_history()
-        tracker.loc["stocks_history.csv", "last_update"] = datetime.now()
-
-    if should_refresh(tracker.loc["indices_historical.csv", "last_update"], "historical"):
-        print("Refreshing indices historical...")
-        refresh_indices_history()
-        tracker.loc["indices_historical.csv", "last_update"] = datetime.now()
-
-    if should_refresh(tracker.loc["us_yields.csv", "last_update"], "historical"):
-        print("Refreshing US yields historical...")
-        load_us_yields(force_refresh=True)
-        tracker.loc["us_yields.csv", "last_update"] = datetime.now()
-
-    if should_refresh(tracker.loc["oecd_yields.csv", "last_update"], "historical"):
-        print("Refreshing OECD yields historical...")
-        load_oecd_yields(force_refresh=True)
-        tracker.loc["oecd_yields.csv", "last_update"] = datetime.now()
-
-
-    # Snapshot datasets
-    if should_refresh(tracker.loc["FX_rate_matrix.csv", "last_update"], "snapshot"):
-        print("Refreshing FX matrix snapshot...")
-        load_fx_matrix(force_refresh=True)
-        tracker.loc["FX_rate_matrix.csv", "last_update"] = datetime.now()
-
-
-    if should_refresh(tracker.loc["stocks_snapshot.csv", "last_update"], "snapshot"):
-        print("Refreshing stocks snapshot...")
-        refresh_stock_snapshot()
-        tracker.loc["stocks_snapshot.csv", "last_update"] = datetime.now()
-
-    if should_refresh(tracker.loc["indices_snapshot.csv", "last_update"], "snapshot"):
-        print("Refreshing indices snapshot...")
-        refresh_indices_snapshot()
-        tracker.loc["indices_snapshot.csv", "last_update"] = datetime.now()
-
-    # Cross-Asset Snapshot refresh
-    if should_refresh(tracker.loc["cross_asset_snapshot.csv", "last_update"] if "cross_asset_snapshot.csv" in tracker.index else None, "snapshot"):
-        print("Refreshing Cross-Asset Snapshot...")
-        refresh_cross_asset_snapshot()
-        tracker.loc["cross_asset_snapshot.csv", "last_update"] = datetime.now()
-    
-    # Monetary Policy (Weekly refresh is sufficient)
-    # We use a dummy CSV name "monetary_policy_check" to track this task in your tracker CSV
-    if should_refresh(tracker.loc["monetary_policy_check", "last_update"] if "monetary_policy_check" in tracker.index else None, "weekly"):
-        print("Refreshing Monetary Policy Data...")
-        refresh_monetary_policy()
-        tracker.loc["monetary_policy_check", "last_update"] = datetime.now()
-
-    # ---------------------------------------------------------
-    # Commodities Refresh (Daily)
-    # ---------------------------------------------------------
-    # We check one representative file (e.g., hist_metals.csv)
-    if should_refresh(tracker.loc["hist_metals.csv", "last_update"] if "hist_metals.csv" in tracker.index else None, "daily"):
-        print("Refreshing Commodity History...")
-        refresh_commodity_history()
-        # Update tracker for all groups
-        tracker.loc["hist_metals.csv", "last_update"] = datetime.now()
-        tracker.loc["hist_energy.csv", "last_update"] = datetime.now()
-        tracker.loc["hist_agriculture.csv", "last_update"] = datetime.now()
-
-    # Futures Curves Refresh (Daily)
-    # We track this with a dummy key since it generates many files
-    if should_refresh(tracker.loc["futures_curves_check", "last_update"] if "futures_curves_check" in tracker.index else None, "daily"):
-        print("Refreshing Commodity Futures Curves...")
-        refresh_commodity_futures()
-        tracker.loc["futures_curves_check", "last_update"] = datetime.now()
+    for csv_name, func, mode in tasks:
+        if should_refresh(tracker, csv_name, mode):
+            print(f"Refreshing: {csv_name}...")
+            try:
+                func()
+                tracker.loc[csv_name, "last_update"] = datetime.now()
+                # Special case for commodities which update multiple files
+                if csv_name == "hist_metals.csv":
+                    tracker.loc["hist_energy.csv", "last_update"] = datetime.now()
+                    tracker.loc["hist_agriculture.csv", "last_update"] = datetime.now()
+            except Exception as e:
+                print(f"ERROR refreshing {csv_name}: {e}")
 
     # Save tracker
     save_tracker(tracker)
-    print("✅ Refresh complete")
+    print("✅ Refresh complete. Files should be ready for commit.")
+
+if __name__ == "__main__":
+    run_refresh()
