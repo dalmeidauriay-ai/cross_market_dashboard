@@ -2,9 +2,9 @@ name: Daily Data Refresh
 
 on:
   schedule:
-    # This runs at 00:00 UTC every day
+    # Runs at 00:00 UTC every day
     - cron: '0 0 * * *'
-  workflow_dispatch: # Allows you to run it manually from the GitHub UI
+  workflow_dispatch: # Allows you to trigger it manually from GitHub Actions tab
 
 jobs:
   refresh:
@@ -20,17 +20,21 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas yfinance pandas_datareader plotly requests
+          pip install -r requirements.txt
 
       - name: Run refresh script
+        env:
+          # This line fixes the "ModuleNotFoundError: No module named 'app'"
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          # We point to your existing refresh script
           python jobs/refresh_data.py
 
       - name: Commit and Push changes
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
+          # Stage all data changes, including the new futures curves
           git add data/processed/*.csv
+          git add data/processed/futures_curves/*.csv
           git commit -m "auto: daily data refresh" || echo "No changes to commit"
           git push
