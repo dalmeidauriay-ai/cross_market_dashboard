@@ -74,11 +74,11 @@ STOCK_TICKERS = {
     "Sanofi_FR": "SAN.PA",
     "SchneiderElectric_FR": "SU.PA",
     "SociétéGénérale_FR": "GLE.PA",
-    "STMicroelectronics_FR": "STM.PA",
+    "STMicroelectronics_FR": "STMPA.PA",
     "Teleperformance_FR": "TEP.PA",
     "Thales_FR": "HO.PA",
     "TotalEnergies_FR": "TTE.PA",
-    "UnibailRodamcoWestfield_FR": "URW.AS",
+    "UnibailRodamcoWestfield_FR": "URW.PA",
     "Veolia_FR": "VIE.PA",
     "Vinci_FR": "DG.PA",
     "Vivendi_FR": "VIV.PA",
@@ -88,7 +88,7 @@ STOCK_TICKERS = {
     "Alibaba_CN": "BABA",
     "JDcom_CN": "JD",
     "Tencent_CN": "TCEHY",
-    "PetroChina_CN": "PTR",
+    "PetroChina_CN": "601857.SS",
 
     # ------ Japan ------
     "Toyota_JP": "7203.T",
@@ -107,15 +107,67 @@ STOCK_TICKERS = {
     "HyundaiMotor_KR": "005380.KQ",
     "TataConsultancy_IN": "TCS.NS",
     "RelianceIndustries_IN": "RELIANCE.NS",
-    "TataMotors_IN": "TTM",
+    "TataMotors_IN": "TMPV.NS",
     "TSMC_TW": "2330.TW",
 
     # ------ Emerging ------
     "Lukoil_RU": "LKOH.ME",
-    "Gazprom_RU": "OGZPY",
+    #"Gazprom_RU": "OGZPY", # Delisted
     "Naspers_ZA": "NPSNY",
     "SaudiAramco_SA": "2222.SR",
 }
+
+
+COUNTRY_TO_REGION = {
+    'US': 'Americas',
+    'CA': 'Americas',
+    'MX': 'Americas',
+    'BR': 'Americas',
+    'AR': 'Americas',
+    'DE': 'Europe',
+    'FR': 'Europe',
+    'GB': 'Europe',
+    'IT': 'Europe',
+    'NL': 'Europe',
+    'CH': 'Europe',
+    'ES': 'Europe',
+    'SE': 'Europe',
+    'NO': 'Europe',
+    'DK': 'Europe',
+    'FI': 'Europe',
+    'AT': 'Europe',
+    'BE': 'Europe',
+    'PT': 'Europe',
+    'IE': 'Europe',
+    'JP': 'Asia',
+    'HK': 'Asia',
+    'KR': 'Asia',
+    'IN': 'Asia',
+    'AU': 'Asia',
+    'CN': 'Asia',
+    'TW': 'Asia',
+    'SG': 'Asia',
+    'MY': 'Asia',
+    'TH': 'Asia',
+    'ID': 'Asia',
+    'PH': 'Asia',
+}
+
+SYMBOLES = {'USD': '$', 
+            'EUR': '€', 
+            'GBP': '£', 
+            'JPY': '¥', 
+            'KRW': '₩', 
+            'CHF': 'CHF', 
+            'MXN': '$', 
+            'BRL': 'R$', 
+            'INR': '₹', 
+            'TWD': 'NT$', 
+            'ZAR': 'R', 
+            'SAR': '﷼', 
+            'RUB': '₽', 
+            'CNY': '¥', 
+            'HKD': 'HK$'}
 
 # -------------------------
 # Stock Groups (indexes/exchanges)
@@ -191,14 +243,29 @@ STOCK_CURRENCIES = {
     "CN": "CNY",
     "HK": "HKD",
 }
+
+# -------------------------
+# Tickers load_fx_matrix
+# -------------------------
+FX_MATRIX_TICKERS = {
+    "EUR": "EURUSD=X",  # 1 EUR = x USD (Direct Quote)
+    "GBP": "GBPUSD=X",  # 1 GBP = x USD (Direct Quote)
+    "JPY": "JPY=X",     # 1 USD = x JPY (Indirect Quote)
+    "CHF": "CHF=X",     # 1 USD = x CHF (Indirect Quote)
+    "USD": None,        # Pivot
+}
+
+# -------------------------
+# FX Groups (Time Series)
 # -------------------------
 FX_GROUPS = {
     "Majors": {
-        "USD/EUR": "EURUSD=X",
+        "EUR/USD": "EURUSD=X",  # Renamed from USD/EUR to match market convention
         "USD/JPY": "JPY=X",
         "GBP/USD": "GBPUSD=X",
         "AUD/USD": "AUDUSD=X",
         "NZD/USD": "NZDUSD=X",
+        "USD/CHF": "CHF=X",     # Added explicit USD/CHF
     },
     "Europe": {
         "EUR/JPY": "EURJPY=X",
@@ -226,20 +293,7 @@ FX_GROUPS = {
     },
 }
 
-# Flattened version if needed elsewhere
 FX_PAIRS = {pair: ticker for group in FX_GROUPS.values() for pair, ticker in group.items()}
-
-
-# -------------------------
-# Commodities (placeholder)
-# -------------------------
-COMMODITIES = {
-    "Gold": "GC=F",
-    "Silver": "SI=F",
-    "Crude Oil WTI": "CL=F",
-    "Crude Oil Brent": "BZ=F",
-    "Natural Gas": "NG=F",
-}
 
 # -------------------------
 # Indexes (placeholder)
@@ -271,8 +325,9 @@ INDICES = {
         "S&P 500": "^GSPC",
         "Dow Jones": "^DJI", 
         "Nasdaq 100": "^IXIC",
-        "Bovespa": "^BVSP",
         "Russell 2000": "^RUT",
+        "S&P/TSX Composite": "^GSPTSE",
+        "Bovespa": "^BVSP",
         "Merval": "^MERV"
     },
     "Europe": {
@@ -281,6 +336,7 @@ INDICES = {
         "DAX": "^GDAXI",
         "FTSE 100": "^FTSE",
         "FTSE MIB": "FTSEMIB.MI",
+        "IBEX 35": "^IBEX",
         "AEX": "^N100"
     },
     "Asia": {
@@ -297,44 +353,23 @@ INDICES = {
 # -------------------------
 # Macro Indicators
 # -------------------------
-MACRO_INDICATORS = {
-    "FRED": {
-        "GDP": {
-            "US": "GDP", 
-            "China": "CHNGDPNQDSMEI", 
-            "Japan": "JPNGDPNQDSMEI", 
-            "France": "FRAGDPNQDSMEI", 
-            "UK": "GBRGDPNQDSMEI", 
-            "Germany": "DEUGDPNQDSMEI"
-        },
-        "Interest Rates": {
-            "Fed Funds Rate": "FEDFUNDS", 
-            "ECB Main Refinancing Rate": "ECBMAIN"
-        }, 
-        "Inflation": {
-            "US CPI": "CPIAUCSL", 
-            "Euro Area CPI": "CP0000EZ19M086NEST", 
-            "France CPI": "FRACPIALLMINMEI"
-        }
-    }, 
-    "Yahoo": {
-        "Volatility": {
-            "VIX": "^VIX"
-        }, 
-        "Commodities": {
-            "Gold": "GC=F", 
-            "Brent Oil": "BZ=F"
-        }, 
-        "Crypto": {
-            "BTC-USD": "BTC-USD", 
-            "ETH-USD": "ETH-USD"
-        }, 
-        "Equity": {
-            "MSCI World": "URTH"
-        }
+# =========================================================
+# Monetary Policy Tickers
+# =========================================================
+# Used for Macro Policy Matrix (US & EU)
+MONETARY_POLICY_TICKERS = {
+    "USA": {
+        "CPI": "CPIAUCSL",          # US CPI (Index)
+        "EFFR": "EFFR",             # Effective Fed Funds Rate
+        "Target_Up": "DFEDTARU",    # Fed Target Upper
+        "Target_Low": "DFEDTARL"    # Fed Target Lower
+    },
+    "EURO": {
+        "CPI": "CP0000EZ19M086NEST", # EU HICP (Index) - The robust one
+        "Deposit": "ECBDFR",         # ECB Deposit Facility (Floor)
+        "MRO": "ECBMRRFR"            # ECB Main Refinancing (Pivot)
     }
 }
-
 
 # -------------------------
 # Commodities (for Page 5) 
@@ -401,3 +436,117 @@ OECD_YIELD_TICKERS = {
 # Convenience lists
 ALL_US_YIELDS = list(US_YIELD_TICKERS.keys())
 ALL_OECD_YIELDS = list(OECD_YIELD_TICKERS.keys())
+
+
+# =========================================================
+# Cross-Asset Snapshot Tickers (Yahoo Finance)
+# =========================================================
+# Keys are display names. 
+# Values are tuples: (Yahoo Ticker, Unit Label)
+CROSS_ASSET_TICKERS = {
+    "VIX Index":       ("^VIX",     "% (Vol)"),
+    "Gold":            ("GC=F",     "$/oz"),
+    "Brent Oil":       ("BZ=F",     "$/bbl"),
+    "Bitcoin":         ("BTC-USD",  "USD"),
+    "Ethereum":        ("ETH-USD",  "USD"),
+    "MSCI World":      ("URTH",     "$"),       # ETF Proxy
+    "EUR/USD":         ("EURUSD=X", "Rate"),
+    "USD/JPY":         ("JPY=X",    "Rate"),
+    "10Y Treasury":    ("^TNX",     "%")
+}
+
+# -------------------------
+#  Tickers load_gdp_comparison
+# -------------------------
+# Used in GDP data loading and processing
+GDP_COMPARISON_TICKERS = {
+        "USA": "GDP",
+        "China": "CHNGDPNQDSMEI",
+        "Japan": "JPNNGDP",
+        "UK": "UKNGDP",
+        "Germany": "DEUGDPNQDSMEI",
+        "France": "FRAGDPNQDSMEI"
+    }
+
+# -------------------------
+# Tickers build_gdp_monitor_table
+# -------------------------
+# Used in building GDP comparison tables
+GDP_MONITOR_TABLE_TICKERS = {
+    "United States": "GDP",
+    "China": "CHNGDPNQDSMEI", # Example ID, ensure it matches data_loader
+    "Japan": "JPNGDPNQDSMEI",
+    "Germany": "DEUGDPNQDSMEI",
+    "France": "FRAGDPNQDSMEI",
+    "United Kingdom": "GBRGDPNQDSMEI"
+}
+
+# -------------------------
+# Tickers build_gdp_comparison_tables  
+# -------------------------
+# Used in building GDP comparison tables
+GDP_COMPARISON_TABLES_TICKERS = [
+    {'country': 'USA',     'currency': 'USD', 'divisor': 1e3},
+    {'country': 'China',   'currency': 'CNY', 'divisor': 1e12},
+    {'country': 'Japan',   'currency': 'JPY', 'divisor': 1e3}, # Adjusted 1e3 for Billions
+    {'country': 'UK',      'currency': 'GBP', 'divisor': 1e6},
+    {'country': 'Germany', 'currency': 'EUR', 'divisor': 1e12},
+    {'country': 'France',  'currency': 'EUR', 'divisor': 1e12},
+]
+
+
+
+# ... (Keep existing STOCK_TICKERS, etc.)
+
+# =========================================================
+# Commodities Tickers Mapping
+# =========================================================
+
+COMMODITY_GROUPS = {
+    "Metals": {
+        "Gold": "GC=F", 
+        "Silver": "SI=F", 
+        "Copper": "HG=F", 
+        "Platinum": "PL=F", 
+        "Steel HRC": "HRC=F",
+        "Nickel": "NIKL", # ETF proxy often used if futures data is restricted
+        "Palladium": "PA=F",
+        "Lithium": "LIT"
+    },
+    "Energy": {
+        "Crude Oil WTI": "CL=F", 
+        "Brent Oil": "BZ=F", 
+        "Natural Gas": "NG=F", 
+        "Heating Oil": "HO=F", 
+        "RBOB Gasoline": "RB=F",
+        "Ethanol": "CZ=F" 
+    },
+    "Agriculture": {
+        "Wheat": "ZW=F", 
+        "Corn": "ZC=F", 
+        "Soybeans": "ZS=F", 
+        "Cocoa": "CC=F", 
+        "Coffee": "KC=F", 
+        "Orange Juice": "OJ=F", 
+        "Sugar": "SB=F", 
+        "Cotton": "CT=F", 
+        "Live Cattle": "LE=F", 
+        "Lean Hogs": "HE=F"
+    }
+}
+
+# Configuration for Futures Curves
+FUTURE_MONTH_MAP = {
+    "F": "Jan", "G": "Feb", "H": "Mar", "J": "Apr", "K": "May", "M": "Jun",
+    "N": "Jul", "Q": "Aug", "U": "Sep", "V": "Oct", "X": "Nov", "Z": "Dec"
+}
+
+COMMODITY_FUTURES_CONFIG = {
+    "Crude Oil":   {"root": "CL",  "suffix": ".NYM", "months": ["F","G","H","J","K","M","N","Q","U","V","X","Z"]},
+    "Gold":        {"root": "GC",  "suffix": ".CMX", "months": ["F","G","H","J","M","Q","V","Z"]},
+    "Silver":      {"root": "SI",  "suffix": ".CMX", "months": ["H","K","N","U","Z"]},
+    "Natural Gas": {"root": "NG",  "suffix": ".NYM", "months": ["F","G","H","J","K","M","N","Q","U","V","X","Z"]},
+    "Heating Oil": {"root": "HO",  "suffix": ".NYM", "months": ["F","G","H","J","K","M","N","Q","U","V","X","Z"]},
+    "Corn":        {"root": "ZC",  "suffix": ".CBT", "months": ["H","K","N","U","Z"]},
+    "Coffee":      {"root": "KC",  "suffix": ".NYB", "months": ["H","K","N","U","Z"]}
+}

@@ -8,6 +8,8 @@
 import os
 import pandas as pd
 from datetime import datetime, timedelta
+import yfinance as yf
+import datetime as dt
 
 # ---------------------------------------------------------
 # Imports from services
@@ -21,6 +23,10 @@ from .transforms import (
     compute_stock_timeseries,
     compute_stock_comparator_timeseries,
     compute_cumulative_returns,
+    build_gdp_monitor_table,
+    build_gdp_comparison_tables,
+    compute_cross_asset_table,
+
 )
 
 from .yf_client import (
@@ -28,8 +34,6 @@ from .yf_client import (
     download_stock_history_series,
     download_stock_snapshot_series,
     download_index_snapshot_series,
-    download_macro_yahoo_series,
-    download_news,
 )
 
 from .fred_client import (
@@ -39,14 +43,15 @@ from .fred_client import (
 )
 
 from .tickers_mapping import (
-    FX_PAIRS, 
     US_YIELD_TICKERS, 
     OECD_YIELD_TICKERS,
     STOCK_TICKERS,
     STOCK_CURRENCIES,
     INDICES,
-    MACRO_INDICATORS,
-    COMMODITIES,
+    MONETARY_POLICY_TICKERS,
+    COMMODITY_GROUPS, 
+    COMMODITY_FUTURES_CONFIG, 
+    FUTURE_MONTH_MAP
 )
 
 
@@ -65,7 +70,7 @@ OECD_YIELDS_PATH = os.path.join("data", "processed", "oecd_yields.csv")
 INDICES_SNAPSHOT_PATH = os.path.join("data", "processed", "indices_snapshot.csv")
 INDICES_HISTORY_PATH = os.path.join("data", "processed", "indices_historical.csv")
 MACRO_DATA_PATH = os.path.join("data", "processed", "macro_data.csv")
-NEWS_DATA_PATH = os.path.join("data", "processed", "news_data.csv")
+
 
 # =========================================================
 # Stocks Snapshot Loader
@@ -155,82 +160,120 @@ def refresh_indices_snapshot() -> pd.DataFrame:
 
 
 # =========================================================
-# Macro Data Loader
+# Monetary Policy Loader (Robust Local CSV)
 # =========================================================
-def load_macro_data(force_refresh: bool = False) -> dict:
+def refresh_monetary_policy() -> None:
     """
-    Load macro indicators data.
-    Returns a dict with processed data for display.
+    Downloads the latest data for US and EU policy from FRED
+    and saves them as individual raw CSVs in data/raw/.
     """
-    if not force_refresh:
-        # For now, always refresh as it's not cached
-        pass
+    raw_dir = os.path.join("data", "raw")
+    if not os.path.exists(raw_dir):
+        os.makedirs(raw_dir)
+        
+    # We fetch 3 years to ensure we have enough history for YoY calculations (-13 months)
+    start_date = (datetime.now() - timedelta(days=3*365)).strftime('%Y-%m-%d')
+    
+    print("  -> Refreshing Monetary Policy Data...")
+    
+    for region, tickers in MONETARY_POLICY_TICKERS.items():
+        for name, code in tickers.items():
+            try:
+                # Download single series to avoid index collisions
+                df = download_fred_series([code], start_date=start_date)
+                if not df.empty:
+                    # Naming convention: Region_Key_Ticker.csv
+                    filename = f"{region}_{name}_{code}.csv"
+                    path = os.path.join(raw_dir, filename)
+                    df.to_csv(path)
+            except Exception as e:
+                print(f"⚠️ Error refreshing {region} {name}: {e}")
 
-    macro_data = {}
+# ==========================
+# Monetary Policy Raw Loader
+# ==========================
+def load_monetary_policy_raw() -> dict:
+    """
+    Loads the raw CSVs from data/raw/ into a dictionary of DataFrames.
+    This function DOES NOT compute metrics; it just retrieves the files.
+    """
+    raw_dir = os.path.join("data", "raw")
+    data = {}
+    
+    for region, tickers in MONETARY_POLICY_TICKERS.items():
+        data[region] = {}
+        for name, code in tickers.items():
+            filename = f"{region}_{name}_{code}.csv"
+            path = os.path.join(raw_dir, filename)
+            
+            if os.path.exists(path):
+                # Parse dates to ensure index is DatetimeIndex
+                data[region][name] = pd.read_csv(path, index_col=0, parse_dates=True)
+            else:
+                data[region][name] = pd.DataFrame() # Empty if missing
+                
+    return data
 
-    # FRED data
-    fred_series = []
-    for category, items in MACRO_INDICATORS["FRED"].items():
-        for name, code in items.items():
-            fred_series.append(code)
 
-    fred_df = download_fred_series(fred_series, start_date="2010-01-01")
+# =========================================================
+# Cross-Asset Snapshot Loader
+# =========================================================
 
-    # Process GDP: quarterly, most recent vs previous year
-    gdp_data = {}
-    for country, code in MACRO_INDICATORS["FRED"]["GDP"].items():
+def refresh_cross_asset_snapshot():
+    """Download raw data and save the processed snapshot table."""
+    from .tickers_mapping import CROSS_ASSET_TICKERS
+    
+    raw_dir = os.path.join("data", "raw")
+    
+    # 1. Download
+    data_map = {}
+    for name, (ticker, unit) in CROSS_ASSET_TICKERS.items():
+        df = download_stock_snapshot_series(ticker)
+        data_map[ticker] = df
+    
+    # 2. Save Individual Raw Files (standard behavior)
+    raw_series_dict = {}
+    for ticker, df in data_map.items():
+        safe_name = ticker.replace("^", "").replace("=", "").replace("/", "")
+        df.to_csv(os.path.join(raw_dir, f"cross_{safe_name}.csv"))
+        raw_series_dict[ticker] = df["Close"] if "Close" in df.columns else df.iloc[:,0]
+
+    # 3. Compute and Save the Processed Snapshot
+    final_df = compute_cross_asset_table(raw_series_dict)
+    if not final_df.empty:
+        final_df.to_csv(os.path.join("data", "processed", "cross_asset_snapshot.csv"), index=False)
+
+def load_cross_asset_snapshot():
+    path = os.path.join("data", "processed", "cross_asset_snapshot.csv")
+    if os.path.exists(path):
+        return pd.read_csv(path)
+    return pd.DataFrame()
+
+
+
+
+# =========================================================
+# GDP Loader
+# =========================================================
+def load_gdp_refined(force_refresh: bool = False) -> pd.DataFrame:
+    """
+    Loads FRED GDP data and transforms it into the Monitor Table format.
+    Returns DataFrame: [Country, GDP Current ($B), GDP Prev ($B), Change, Current Q, Prev Q]
+    """
+    # 1. Load raw GDP series from FRED
+    from .tickers_mapping import MACRO_INDICATORS
+    gdp_codes = list(MACRO_INDICATORS["FRED"]["GDP"].values())
+    raw_data = {}
+    fred_df = download_fred_series(gdp_codes, start_date="2010-01-01")
+    for code in gdp_codes:
         if code in fred_df.columns:
-            series = fred_df[code].dropna()
-            if not series.empty:
-                latest = series.iloc[-1]
-                prev_year = series.iloc[-5] if len(series) > 4 else series.iloc[0]  # approx 1 year ago
-                change = (latest - prev_year) / prev_year * 100
-                gdp_data[country] = {"value": latest, "change": change}
-
-    macro_data["GDP"] = gdp_data
-
-    # Process Inflation: YoY CPI change
-    inflation_data = {}
-    for name, code in MACRO_INDICATORS["FRED"]["Inflation"].items():
-        if code in fred_df.columns:
-            series = fred_df[code].dropna()
-            if len(series) > 12:
-                latest = series.iloc[-1]
-                year_ago = series.iloc[-13]
-                yoy = (latest - year_ago) / year_ago * 100
-                inflation_data[name] = yoy
-
-    macro_data["Inflation"] = inflation_data
-
-    # Rates: latest
-    rates_data = {}
-    for name, code in MACRO_INDICATORS["FRED"]["Interest Rates"].items():
-        if code in fred_df.columns:
-            series = fred_df[code].dropna()
-            if not series.empty:
-                rates_data[name] = series.iloc[-1]
-
-    macro_data["Rates"] = rates_data
-
-    # Yahoo data
-    yahoo_data = {}
-    for category, items in MACRO_INDICATORS["Yahoo"].items():
-        for name, ticker in items.items():
-            df = download_macro_yahoo_series(ticker, period="1y")
-            if not df.empty:
-                latest = df["Price"].iloc[-1]
-                yahoo_data[name] = latest
-
-    macro_data["Yahoo"] = yahoo_data
-
-    return macro_data
-
-
-def load_news_data(ticker: str = "^GSPC", max_news: int = 50) -> list:
-    """
-    Load news headlines for a ticker.
-    """
-    return download_news(ticker, max_news)
+            raw_data[code] = fred_df[code]
+    
+    # 2. Transform into the table
+    # We don't need FX matrix for this specific table as user requested USD Nominal
+    gdp_table = build_gdp_monitor_table(raw_data)
+    
+    return gdp_table
 
 
 # =========================================================
@@ -383,13 +426,9 @@ def load_fx_matrix(
     - If force_refresh=False → load from existing CSV.
     - If force_refresh=True → fetch fresh data, transform, overwrite CSV.
     """
-    default_tickers = {
-        "EUR": "EURUSD=X",
-        "GBP": "GBPUSD=X",
-        "JPY": "JPY=X",
-        "CHF": "CHFUSD=X",
-        "USD": None,
-    }
+    from .tickers_mapping import FX_MATRIX_TICKERS
+    default_tickers = FX_MATRIX_TICKERS
+
     tickers = tickers or default_tickers
 
     if not force_refresh:
@@ -434,7 +473,7 @@ def load_fx_timeseries(pair_name: str, freq: str = "D", force_refresh: bool = Fa
     series = df[pair_name]
     return resample_fx_series(series, freq)
 
-
+    
 # =========================================================
 # FX Historical Helper
 # =========================================================
@@ -588,3 +627,250 @@ def calculate_correlation_matrix(selected_stocks: list[str], selected_benchmarks
     # Compute correlation
     corr_matrix = combined_df.corr()
     return corr_matrix
+
+# =========================================================
+# GDP Comparison Loader
+# =========================================================
+def load_gdp_comparison(force_refresh=False):
+    """
+    Orchestrates fetching GDP data and generating the comparison tables.
+    Uses FX_historical.csv as the source for latest exchange rates.
+    Returns: (df_local, df_usd)
+    """
+    # 1. Define Tickers
+    from .tickers_mapping import GDP_COMPARISON_TICKERS
+    country_tickers = GDP_COMPARISON_TICKERS
+
+    # 2. Fetch Raw Data (FRED)
+    raw_data = {}
+    for country, ticker in country_tickers.items():
+        df = download_fred_series([ticker])
+        if not df.empty:
+            raw_data[country] = df
+
+    # 3. Load FX Rates from Historical Data (The "Robust" Source)
+    # On va chercher la dernière ligne du fichier historique
+    fx_path = os.path.join("data", "processed", "FX_historical.csv")
+    fx_rates = pd.Series(dtype=float)
+    
+    if os.path.exists(fx_path):
+        try:
+            df_hist = pd.read_csv(fx_path, index_col=0)
+            if not df_hist.empty:
+                # On prend la toute dernière ligne (les taux les plus récents)
+                fx_rates = df_hist.iloc[-1]
+                # Optionnel: on s'assure que l'index est propre
+                fx_rates.index = fx_rates.index.str.strip()
+        except Exception as e:
+            print(f"Error loading FX Historical for GDP: {e}")
+
+    # 4. Transform
+    # build_gdp_comparison_tables utilisera maintenant ces taux numériques
+    df_local, df_usd = build_gdp_comparison_tables(raw_data, fx_rates)
+    
+    return df_local, df_usd
+
+
+
+
+
+
+# =========================================================
+# Commodity Data Loader
+# =========================================================
+
+PROCESSED_DIR = os.path.join("data", "processed")
+
+def refresh_commodity_history():
+    """Downloads historical data for Metals, Energy, and Agri."""
+    start_date = "2015-01-01"
+    
+    for group_name, tickers in COMMODITY_GROUPS.items():
+        print(f"--- Downloading Commodity Group: {group_name} ---")
+        group_df = pd.DataFrame()
+        
+        for name, ticker in tickers.items():
+            try:
+                # Use standard yfinance download
+                data = yf.download(ticker, start=start_date, progress=False)
+                if not data.empty:
+                    # Handle MultiIndex headers in newer yfinance
+                    if 'Adj Close' in data.columns:
+                        col = data['Adj Close']
+                    elif 'Close' in data.columns:
+                        col = data['Close']
+                    else:
+                        continue
+                    
+                    if isinstance(col, pd.DataFrame):
+                        col = col.iloc[:, 0]
+                        
+                    group_df[name] = col
+            except Exception as e:
+                print(f"Error downloading {name}: {e}")
+                
+        if not group_df.empty:
+            group_df.sort_index(inplace=True)
+            group_df.ffill(inplace=True)
+            # Save: data/processed/hist_metals.csv
+            filepath = os.path.join(PROCESSED_DIR, f"hist_{group_name.lower()}.csv")
+            group_df.to_csv(filepath)
+            print(f"✅ Saved {filepath}")
+
+def refresh_commodity_futures():
+    """Scans for futures contracts to build forward curves."""
+    today = dt.date.today()
+    start_date = (today - dt.timedelta(days=10)).strftime("%Y-%m-%d")
+    
+    futures_dir = os.path.join(PROCESSED_DIR, "futures_curves")
+    if not os.path.exists(futures_dir):
+        os.makedirs(futures_dir)
+
+    for name, config in COMMODITY_FUTURES_CONFIG.items():
+        chain_data = []
+        current_year_short = int(today.strftime("%y"))
+        # Check this year and next year
+        years = [current_year_short, current_year_short + 1]
+        
+        for year in years:
+            for m_code in config["months"]:
+                ticker = f"{config['root']}{m_code}{year}{config['suffix']}"
+                try:
+                    df = yf.download(ticker, start=start_date, progress=False)
+                    if not df.empty:
+                        # Get last available price
+                        if 'Close' in df.columns:
+                            val = df['Close'].iloc[-1]
+                            # Handle scalar or series
+                            if isinstance(val, pd.Series): val = val.iloc[0]
+                            
+                            last_price = float(val)
+                            
+                            # Create a sortable date for the delivery month
+                            # Year 20xx, Month Index + 1, Day 1
+                            month_idx = list(FUTURE_MONTH_MAP.keys()).index(m_code) + 1
+                            sort_date = dt.datetime(2000+year, month_idx, 1)
+                            
+                            chain_data.append({
+                                "Date": sort_date,
+                                "Contract": ticker,
+                                "Delivery": f"{FUTURE_MONTH_MAP[m_code]} ' {year}",
+                                "Price": last_price
+                            })
+                except Exception:
+                    continue
+
+        if chain_data:
+            res_df = pd.DataFrame(chain_data).sort_values("Date")
+            filename = f"curve_{name.lower().replace(' ', '_')}.csv"
+            res_df.to_csv(os.path.join(futures_dir, filename), index=False)
+            print(f"✅ Saved Curve: {name}")
+
+
+
+# PROCESSED_DIR = os.path.join("data", "processed")
+# if not os.path.exists(PROCESSED_DIR):
+#     os.makedirs(PROCESSED_DIR)
+
+# def update_commodity_history():
+#     """Télécharge l'historique long terme (ex-test.py)"""
+#     start_date = "2010-01-01"
+    
+#     for group, tickers in COMMODITY_HISTORICAL_TICKERS.items():
+#         print(f"--- Downloading Historical Group: {group} ---")
+#         group_df = pd.DataFrame()
+        
+#         for name, ticker in tickers.items():
+#             try:
+#                 data = yf.download(ticker, start=start_date, progress=False)
+#                 if not data.empty:
+#                     # Gestion version yfinance (MultiIndex ou pas)
+#                     if 'Adj Close' in data.columns:
+#                         col = data['Adj Close']
+#                     elif 'Close' in data.columns:
+#                         col = data['Close']
+#                     else:
+#                         continue
+                        
+#                     # Si c'est un DataFrame à une colonne, on prend la série
+#                     if isinstance(col, pd.DataFrame):
+#                         col = col.iloc[:, 0]
+                        
+#                     group_df[name] = col
+#             except Exception as e:
+#                 print(f"Error downloading {name}: {e}")
+                
+#         if not group_df.empty:
+#             group_df.sort_index(inplace=True)
+#             group_df.ffill(inplace=True)
+            
+#             # Sauvegarde : data/processed/hist_metals.csv
+#             filename = f"hist_{group.lower()}.csv"
+#             filepath = os.path.join(PROCESSED_DIR, filename)
+#             group_df.to_csv(filepath)
+#             print(f"✅ Saved {filename}")
+
+# def update_commodity_futures_curves():
+#     """Télécharge les courbes forward (ex-test4.py)"""
+#     today = dt.date.today()
+#     # Fenêtre courte pour avoir le dernier prix
+#     start_date = (today - dt.timedelta(days=10)).strftime("%Y-%m-%d")
+    
+#     # Sous-dossier pour ne pas polluer la racine processed
+#     futures_dir = os.path.join(PROCESSED_DIR, "futures_curves")
+#     if not os.path.exists(futures_dir):
+#         os.makedirs(futures_dir)
+
+#     for name, config in COMMODITY_FUTURES_CONFIG.items():
+#         print(f"--- Scanning Futures Chain for {name} ---")
+#         chain_data = []
+        
+#         # Année en cours et suivante
+#         current_year_short = int(today.strftime("%y"))
+#         years = [current_year_short, current_year_short + 1]
+        
+#         for year in years:
+#             for m_code in config["months"]:
+#                 ticker = f"{config['root']}{m_code}{year}{config['suffix']}"
+#                 try:
+#                     df = yf.download(ticker, start=start_date, progress=False, group_by='ticker')
+                    
+#                     if not df.empty:
+#                         # Extraction du dernier prix
+#                         if 'Close' in df.columns:
+#                             last_price = df['Close'].iloc[-1]
+#                         else:
+#                             # Gestion MultiIndex (Ticker, Close)
+#                             try:
+#                                 last_price = df.iloc[-1, df.columns.get_loc((ticker, 'Close'))]
+#                             except:
+#                                 last_price = df.iloc[-1, 0] # Fallback brutal
+
+#                         if pd.notnull(last_price):
+#                             # Date artificielle pour le tri
+#                             sort_date = dt.datetime(2000+year, list(FUTURE_MONTH_MAP.keys()).index(m_code)+1, 1)
+                            
+#                             chain_data.append({
+#                                 "Date": sort_date,
+#                                 "Contract": ticker,
+#                                 "Delivery": f"{FUTURE_MONTH_MAP[m_code]} 20{year}",
+#                                 "Price": round(float(last_price), 2)
+#                             })
+#                 except Exception:
+#                     continue
+
+#         if chain_data:
+#             res_df = pd.DataFrame(chain_data).sort_values("Date")
+#             filename = f"curve_{name.lower().replace(' ', '_')}.csv"
+#             filepath = os.path.join(futures_dir, filename)
+#             res_df.to_csv(filepath, index=False)
+#             print(f"✅ Saved Curve: {filename}")
+#         else:
+#             print(f"⚠️ No curve data for {name}")
+
+# def run_full_update():
+#     """Fonction wrapper pour tout mettre à jour"""
+#     print("🚀 Starting Commodity Data Update...")
+#     update_commodity_history()
+#     update_commodity_futures_curves()
+#     print("🏁 Update Complete.")

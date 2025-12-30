@@ -6,7 +6,7 @@ import pandas as pd
 from datetime import date
 
 from services.data_loader import load_fx_matrix, load_fx_timeseries
-from services.tickers_mapping import FX_PAIRS, FX_GROUPS
+from services.tickers_mapping import FX_GROUPS
 
 # ---------------------------------------------------------
 # Page: FX (p3_fx)
@@ -38,13 +38,8 @@ def _highlight_changes(val: str) -> str:
 def render_fx_matrix(force_refresh: bool):
     """Render the FX spot + % change matrix."""
     merged = load_fx_matrix(force_refresh=force_refresh)
-    st.subheader("Spot + % change matrix")
     styled = merged.style.map(_highlight_changes)
-    st.dataframe(styled)
-
-    with st.expander("Show raw values"):
-        st.write(merged)
-
+    st.dataframe(styled, use_container_width=True)
 
 # =========================================================
 # Figure: FX time series line chart
@@ -111,24 +106,15 @@ def render_fx_timeseries(pair: str, freq: str):
 # Main show() entry point
 # =========================================================
 
-from services.tickers_mapping import FX_GROUPS, FX_PAIRS
-
 def show():
     st.title("💱 FX matrix")
     st.caption("Spot and daily % change across selected currencies, cached for speed.")
 
     with st.sidebar:
-        st.subheader("FX controls")
-        force_refresh = st.checkbox(
-            "Force refresh from Yahoo Finance",
-            value=False,
-            key="fx_force_refresh"
-        )
-        st.info("If unchecked, the page loads the cached matrix from data/processed/.")
-
+        # On a supprimé la section force_refresh ici
+        
         st.subheader("Time Series controls")
 
-        # 🔹 NEW: first select region
         region = st.selectbox(
             "Select FX region",
             options=list(FX_GROUPS.keys()),
@@ -136,7 +122,6 @@ def show():
             key="fx_region"
         )
 
-        # 🔹 NEW: then select pair within region
         pair_name = st.selectbox(
             "Select FX pair",
             options=list(FX_GROUPS[region].keys()),
@@ -144,13 +129,8 @@ def show():
             key="fx_timeseries_pair"
         )
 
-        freq = st.radio(
-            "Select frequency",
-            ["D", "W", "M", "Y"],
-            index=0,
-            key="fx_timeseries_freq"
-        )
+        freq = "D"
 
-    # Render figures
-    render_fx_matrix(force_refresh)
+    # On passe False par défaut à force_refresh puisque le bouton n'existe plus
+    render_fx_matrix(force_refresh=False)
     render_fx_timeseries(pair_name, freq)

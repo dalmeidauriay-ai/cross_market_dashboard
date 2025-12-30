@@ -16,6 +16,10 @@ from app.services.data_loader import (
     refresh_stock_snapshot,
     refresh_indices_snapshot,
     refresh_indices_history,
+    refresh_monetary_policy,
+    refresh_cross_asset_snapshot,
+    refresh_commodity_history,
+    refresh_commodity_futures,
 )
 
 TRACKER_PATH = os.path.join("data", "processed", "refresh_tracker.csv")
@@ -83,21 +87,23 @@ def run_refresh():
         refresh_indices_history()
         tracker.loc["indices_historical.csv", "last_update"] = datetime.now()
 
+    if should_refresh(tracker.loc["us_yields.csv", "last_update"], "historical"):
+        print("Refreshing US yields historical...")
+        load_us_yields(force_refresh=True)
+        tracker.loc["us_yields.csv", "last_update"] = datetime.now()
+
+    if should_refresh(tracker.loc["oecd_yields.csv", "last_update"], "historical"):
+        print("Refreshing OECD yields historical...")
+        load_oecd_yields(force_refresh=True)
+        tracker.loc["oecd_yields.csv", "last_update"] = datetime.now()
+
+
     # Snapshot datasets
     if should_refresh(tracker.loc["FX_rate_matrix.csv", "last_update"], "snapshot"):
         print("Refreshing FX matrix snapshot...")
         load_fx_matrix(force_refresh=True)
         tracker.loc["FX_rate_matrix.csv", "last_update"] = datetime.now()
 
-    if should_refresh(tracker.loc["us_yields.csv", "last_update"], "snapshot"):
-        print("Refreshing US yields snapshot...")
-        load_us_yields(force_refresh=True)
-        tracker.loc["us_yields.csv", "last_update"] = datetime.now()
-
-    if should_refresh(tracker.loc["oecd_yields.csv", "last_update"], "snapshot"):
-        print("Refreshing OECD yields snapshot...")
-        load_oecd_yields(force_refresh=True)
-        tracker.loc["oecd_yields.csv", "last_update"] = datetime.now()
 
     if should_refresh(tracker.loc["stocks_snapshot.csv", "last_update"], "snapshot"):
         print("Refreshing stocks snapshot...")
@@ -108,6 +114,38 @@ def run_refresh():
         print("Refreshing indices snapshot...")
         refresh_indices_snapshot()
         tracker.loc["indices_snapshot.csv", "last_update"] = datetime.now()
+
+    # Cross-Asset Snapshot refresh
+    if should_refresh(tracker.loc["cross_asset_snapshot.csv", "last_update"] if "cross_asset_snapshot.csv" in tracker.index else None, "snapshot"):
+        print("Refreshing Cross-Asset Snapshot...")
+        refresh_cross_asset_snapshot()
+        tracker.loc["cross_asset_snapshot.csv", "last_update"] = datetime.now()
+    
+    # Monetary Policy (Weekly refresh is sufficient)
+    # We use a dummy CSV name "monetary_policy_check" to track this task in your tracker CSV
+    if should_refresh(tracker.loc["monetary_policy_check", "last_update"] if "monetary_policy_check" in tracker.index else None, "weekly"):
+        print("Refreshing Monetary Policy Data...")
+        refresh_monetary_policy()
+        tracker.loc["monetary_policy_check", "last_update"] = datetime.now()
+
+    # ---------------------------------------------------------
+    # Commodities Refresh (Daily)
+    # ---------------------------------------------------------
+    # We check one representative file (e.g., hist_metals.csv)
+    if should_refresh(tracker.loc["hist_metals.csv", "last_update"] if "hist_metals.csv" in tracker.index else None, "daily"):
+        print("Refreshing Commodity History...")
+        refresh_commodity_history()
+        # Update tracker for all groups
+        tracker.loc["hist_metals.csv", "last_update"] = datetime.now()
+        tracker.loc["hist_energy.csv", "last_update"] = datetime.now()
+        tracker.loc["hist_agriculture.csv", "last_update"] = datetime.now()
+
+    # Futures Curves Refresh (Daily)
+    # We track this with a dummy key since it generates many files
+    if should_refresh(tracker.loc["futures_curves_check", "last_update"] if "futures_curves_check" in tracker.index else None, "daily"):
+        print("Refreshing Commodity Futures Curves...")
+        refresh_commodity_futures()
+        tracker.loc["futures_curves_check", "last_update"] = datetime.now()
 
     # Save tracker
     save_tracker(tracker)

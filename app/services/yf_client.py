@@ -230,23 +230,6 @@ def download_macro_yahoo_series(ticker: str, period: str = "2y", interval: str =
 
 
 # =========================================================
-# Page: Overview (p1_overview) — News data.
-# =========================================================
-def download_news(ticker: str, max_news: int = 50) -> list:
-    """
-    Download news headlines for a ticker from Yahoo Finance.
-    """
-    try:
-        stock = yf.Ticker(ticker)
-        news = stock.news
-        headlines = [item['title'] for item in news[:max_news]]
-        return headlines
-    except:
-        return []
-
-
-
-# =========================================================
 # Page: Stocks (p2_stocks) — Indices Historical data.
 # =========================================================
 def download_indices_history(tickers: list, start_date: str = "2010-01-01", end_date: str = None) -> pd.DataFrame:

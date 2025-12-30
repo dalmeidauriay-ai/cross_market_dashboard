@@ -15,44 +15,7 @@ from app.services.transforms import (
     compute_cumulative_returns,
     plot_stock_comparator,
 )
-from app.services.tickers_mapping import STOCK_GROUPS, INDEX_TICKERS, STOCK_CURRENCIES, INDICES, STOCK_TICKERS
-
-
-# Mapping countries to regions for benchmark filtering
-COUNTRY_TO_REGION = {
-    'US': 'Americas',
-    'CA': 'Americas',
-    'MX': 'Americas',
-    'BR': 'Americas',
-    'AR': 'Americas',
-    'DE': 'Europe',
-    'FR': 'Europe',
-    'GB': 'Europe',
-    'IT': 'Europe',
-    'NL': 'Europe',
-    'CH': 'Europe',
-    'ES': 'Europe',
-    'SE': 'Europe',
-    'NO': 'Europe',
-    'DK': 'Europe',
-    'FI': 'Europe',
-    'AT': 'Europe',
-    'BE': 'Europe',
-    'PT': 'Europe',
-    'IE': 'Europe',
-    'JP': 'Asia',
-    'HK': 'Asia',
-    'KR': 'Asia',
-    'IN': 'Asia',
-    'AU': 'Asia',
-    'CN': 'Asia',
-    'TW': 'Asia',
-    'SG': 'Asia',
-    'MY': 'Asia',
-    'TH': 'Asia',
-    'ID': 'Asia',
-    'PH': 'Asia',
-}
+from app.services.tickers_mapping import STOCK_GROUPS, STOCK_CURRENCIES, INDICES, COUNTRY_TO_REGION, SYMBOLES
 
 
 def clean_name(name: str) -> str:
@@ -64,8 +27,7 @@ def get_currency_symbol(name: str) -> str:
     """Get currency symbol for a stock name."""
     country = name.split('_')[-1]
     currency = STOCK_CURRENCIES.get(country, 'USD')
-    symbols = {'USD': '$', 'EUR': '€', 'GBP': '£', 'JPY': '¥', 'KRW': '₩', 'CHF': 'CHF', 'MXN': '$', 'BRL': 'R$', 'INR': '₹', 'TWD': 'NT$', 'ZAR': 'R', 'SAR': '﷼', 'RUB': '₽', 'CNY': '¥', 'HKD': 'HK$'}
-    return symbols.get(currency, currency)
+    return SYMBOLES.get(currency, currency)
 
 
 def show():
