@@ -1,0 +1,36 @@
+name: Daily Data Refresh
+
+on:
+  schedule:
+    # This runs at 00:00 UTC every day
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allows you to run it manually from the GitHub UI
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas yfinance pandas_datareader plotly requests
+
+      - name: Run refresh script
+        run: |
+          # We point to your existing refresh script
+          python jobs/refresh_data.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add data/processed/*.csv
+          git commit -m "auto: daily data refresh" || echo "No changes to commit"
+          git push

@@ -4,4 +4,4 @@ yfinance
 plotly
 matplotlib
 numpy
-pandas_datareader
+pandas_datareadergi
