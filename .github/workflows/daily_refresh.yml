@@ -6,17 +6,24 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch: # Allows you to trigger it manually from GitHub Actions tab
 
+# 1. FIX: Grant the GitHub Action permission to write back to the repository
+permissions:
+  contents: write
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          # 2. FIX: Use the built-in token to ensure the robot has push authority
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # Fetches all history for all branches and tags
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          # Using 3.11 to avoid yfinance syntax errors
           python-version: '3.11'
 
       - name: Install dependencies
@@ -25,10 +32,8 @@ jobs:
 
       - name: Run refresh script
         env:
-          # Ensures the script can find the 'app' module
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          # This script will create the folders and CSVs
           python jobs/refresh_data.py
 
       - name: Commit and Push changes
@@ -36,17 +41,14 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           
-          # ROBUST FIX:
-          # Instead of looking for specific files (which causes crashes if missing),
-          # we force-add the entire 'data' directory.
-          # "|| true" ensures that even if something is weird, the robot won't crash.
+          # Force add the data and raw folders created by refresh_data.py
           git add -f data/ || true
           
-          # Check if there is anything to commit before trying
-          # This prevents "nothing to commit" errors
+          # Check for changes to avoid empty commit errors
           if git diff --staged --quiet; then
             echo "No changes to commit. Skipping push."
           else
             git commit -m "auto: daily data refresh"
-            git push
+            # 3. FIX: Explicitly push to the main branch
+            git push origin main
           fi
