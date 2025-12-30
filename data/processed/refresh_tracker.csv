@@ -4,11 +4,12 @@ stocks_history.csv,2025-12-30 11:47:15.488297
 indices_historical.csv,2025-12-30 11:47:17.270656
 us_yields.csv,2025-12-30 11:47:29.071930
 oecd_yields.csv,2025-12-30 11:47:31.752512
-FX_rate_matrix.csv,2025-12-30 11:47:32.522424
-stocks_snapshot.csv,2025-12-30 11:47:42.504053
-indices_snapshot.csv,2025-12-30 11:47:44.315181
+FX_rate_matrix.csv,2025-12-30 14:47:20.565822
+stocks_snapshot.csv,2025-12-30 14:49:18.512043
+indices_snapshot.csv,2025-12-30 14:49:24.800259
 monetary_policy_check,2025-12-30 11:47:50.355263
 hist_metals.csv,2025-12-30 11:47:56.900414
 hist_energy.csv,2025-12-30 11:47:56.900847
 hist_agriculture.csv,2025-12-30 11:47:56.901056
 futures_curves_check,2025-12-30 11:48:16.097422
+cross_asset_snapshot.csv,2025-12-30 14:49:27.575319
