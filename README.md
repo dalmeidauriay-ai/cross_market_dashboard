@@ -1,133 +1,93 @@
 # Repository Structure
 cross_market_dashboard/
-├─ app/                          # Main application code
-│  ├─ main.py                    # Entry point (Streamlit multipage navigation)
-│  ├─ pages/                     # Each dashboard page
-│  │  ├─ overview.py             # Page 1: Global snapshot (indexes, macro, commo, FX matrix)
-│  │  ├─ equities.py             # Page 2: Equities (stocks vs indexes)
-│  │  ├─ fx.py                   # Page 3: FX (matrix + time series)
-│  │  ├─ rates.py                # Page 4: Rates (FRED yields, OECD, US curve)
-│  │  ├─ commodities.py          # Page 5: Commodities (oil, gold, wheat, etc.)
-│  │  ├─ etfs.py                 # Page 6: ETFs (sector & regional comparisons)
-│  │  ├─ options.py              # Page 7: Options & Volatility (VIX, vol indices)
-│  │  ├─ alternatives.py         # Page 8: Alternatives (crypto, real estate, etc.)
+├─ app/                          # Application Core
+│  ├─ main.py                    # Entry point & Navigation logic
+│  ├─ pages/                     # Dashboard Modules
+│  │  ├─ p1_overview.py          # Global Market & Macro Snapshot
+│  │  ├─ p2_stocks.py            # Equities Performance & Analytics
+│  │  ├─ p3_fx.py                # Foreign Exchange Matrix & Trends
+│  │  ├─ p4_rates.py             # Rates (FRED yields, OECD, US curve)
+│  │  ├─ p5_commo.py             # Commodities, Ratios & Futures Curves
 │  │
-│  ├─ components/                # Reusable UI + plotting components
-│  │  ├─ charts.py               # Generic plotting (line, bar, heatmap)
-│  │  ├─ snapshots.py            # Snapshot visuals (yield curve, OECD barh, FX matrix styling)
-│  │  ├─ widgets.py              # Sidebar controls (date range, selectors, filters)
+│  ├─ services/                  # Backend Logic
+│  │  ├─ data_loader.py          # Data ingestion (CSV/API)
+│  │  ├─ yf_client.py            # Yahoo Finance API Integration
+│  │  ├─ fred_client.py          # Fred Integration
+│  │  ├─ transforms.py           # Financial math & data cleaning
+│  │  ├─ tickers_mapping.py      # Centralized asset dictionaries
 │  │
-│  ├─ services/                  # Data access + processing
-│  │  ├─ data_loader.py          # Unified load (CSV or API)
-│  │  ├─ fred_client.py          # FRED fetch logic
-│  │  ├─ yf_client.py            # Yahoo Finance fetch logic
-│  │  ├─ transforms.py           # Cleaning, normalization, returns, % changes
-│  │  ├─ tickers_mapping.py      # Central dictionaries: tickers → friendly names (FX, equities, ETFs, commodities…)
+├─ data/                         # Data Warehouse
+│  ├─ processed/                 # Refreshed CSVs & Futures Chains
+│  │  ├─ futures_curves/         # Individual commodity term structures
+│  ├─ raw/                       # Dirty CSVs
+│  ├─ test/                      # May use as path for test.py
 │  │
-│  ├─ config/                    # Configuration files
-│  │  ├─ symbols.py              # (Optional legacy) constants, may migrate into tickers_mapping
-│  │  ├─ style.py                # Fonts, colors, themes
+├─ jobs/                         # Automation
+│  ├─ refresh_data.py            # Automated ETL & Data Refresh engine
 │
-├─ data/                         # Local data cache
-│  ├─ raw/                       # Raw CSVs (direct downloads)
-│  ├─ processed/                 # Cleaned & aligned datasets
-│
-├─ notebooks/                    # Experiments, prototyping
-│
-├─ jobs/                         # Scheduled refresh tasks
-│  ├─ refresh_data.py            # Script to update data daily
-│
-├─ tests/                        # Unit tests (optional, for services/transforms)
-│
-├─ README.md                     # Project overview
-├─ .gitignore                    # Ignore data/, __pycache__/, .env, cache files
-├─ .env                          # API keys (FRED, etc.) — not committed
+├─ README.md                     # Project documentation
+├─ test.py                       # Play ground
+└─ .gitignore                    # Prevents tracking of cache and local data
 
 
+🌍 Cross-Market Macro Dashboard
 
+A professional-grade financial terminal built with Streamlit and Python. This dashboard centralizes global market data, macro indicators, and futures term structures into a single, high-performance interface.
+📂 Project Architecture
 
-# Cross-Market Dashboard - Storyboard and Framework
+(Current structure matches your local files: app/pages/p1 through p5)
+🚀 Key Features Implemented
+1. Global Macro Terminal (Overview)
 
-✅ 1. Project Setup & Structure
-- [x] Organize repo with clear folders (app/, data/, jobs/, notebooks/)
-- [x] Create main.py as entry point
-- [ ] Add reusable components/ (charts, KPIs, layouts)
-- [ ] Add config/ for constants and style settings
-- [x] Build services/ for data access (APIs, loaders)
-- [x] Add tickers_mapping.py for centralized ticker dictionaries
+    Global Snapshot: Performance tracking for Americas, Europe, and Asia indices.
 
-✅ 2. Navigation & Layout
-- [x] Implement top ribbon navigation with buttons
-- [ ] Remove Streamlit’s default sidebar page list
-- [ ] Sidebar reserved for slicers/filters (per page)
+    Monetary Policy: Central bank rate tracker (Fed, ECB, BoE, etc.).
 
-✅ 3. Pages (Big Themes)
-3.1 Overview
-- [x] Create p1_overview.py
-- [ ] Add tabs: Global Indexes, Macro Indicators, Commodities, FX Matrix
-- [ ] Populate with charts and KPIs
-3.2 Equities
-- [ ] Sidebar slicer: stock ticker, index, sector
-- [ ] Time series plots
-- [ ] Sector performance heatmap
-- [ ] Valuation metrics
-3.3 FX
-- [ ] Sidebar slicer: currency pair, timeframe
-- [ ] FX spot & forward curves
-- [ ] Volatility surface
-- [ ] Correlation matrix
-3.4 Rates
-- [ ] Sidebar slicer: country, maturity
-- [ ] Yield curves
-- [ ] Spread analysis
-- [ ] Central bank policy tracker
-3.5 Commodities
-- [ ] Sidebar slicer: commodity type (oil, gold, wheat, etc.)
-- [ ] Price time series
-- [ ] Supply/demand indicators
-- [ ] Futures curve
-3.6 ETFs
-- [ ] Sidebar slicer: ETF ticker, asset class
-- [ ] Performance vs benchmark
-- [ ] Holdings breakdown
-- [ ] Flows analysis
-3.7 Options & Volatility
-- [ ] Sidebar slicer: underlying asset, expiry
-- [ ] Implied vol surface
-- [ ] Skew analysis
-- [ ] Option greeks dashboard
-3.8 Alternatives
-- [ ] Sidebar slicer: asset type (PE, RE, crypto, etc.)
-- [ ] Performance indices
-- [ ] Risk/return metrics
-- [ ] Allocation trends
+    Macro Pulse: Real-time GDP and Inflation (YoY) metrics.
 
-✅ 4. Data Layer
-- [ ] Define data sources (APIs, CSV, DB)
-- [ ] Build loaders in services/
-- [ ] Add transformation utilities
-- [ ] Implement caching for performance
-- [x] Centralize ticker dictionaries in tickers_mapping.py
+    Cross-Asset Snapshot: Unified view of Gold, Oil, BTC, and Bond Yields.
 
+2. Equity Analytics
 
-✅ 5. Components
-- [ ] Reusable chart functions (line, bar, scatter, heatmap)
-- [ ] KPI cards (returns, vol, Sharpe ratio, drawdown)
-- [ ] Layout helpers (tabs, grids, styled tables)
+    Performance Tables: Daily, Weekly, and YTD performance for global leaders.
 
-✅ 6. Jobs & Automation
-- [ ] Scheduled data refresh (daily/weekly)
-- [ ] ETL scripts in jobs/
-- [ ] Logging & error handling
+    Stock Comparator: Interactive tool to compare stock returns vs. benchmarks with correlation and cumulative return plots.
 
-✅ 7. Deployment
-- [ ] Local dev with Streamlit
-- [ ] Deploy to Streamlit Cloud / internal server
-- [ ] Optional: Dockerize for portability
-- [ ] CI/CD pipeline (future)
+3. FX Hub
 
-✅ 8. Future Enhancements
-- [ ] User authentication
-- [ ] Export to PDF/Excel
-- [ ] Interactive backtesting module
-- [ ] ML models for forecasting
+    Relative Strength Matrix: A heat-mapped grid showing cross-currency strength.
+
+    Trend Analysis: Historical time-series for major currency pairs.
+
+4. Fixed Income & Yield Curves (Rates)
+
+    U.S. Yield Curve: Dynamic visualization of the 2Y, 5Y, 10Y, and 30Y Treasury yields.
+
+    OECD Comparison: Snapshot of 10Y Government Bond yields across major economies.
+
+    Spread Analysis: Tracking yield evolution over time to identify curve flattening or inversion.
+
+5. Commodities & Futures (Advanced)
+
+    Macro Sentiment Ratios: Dr. Copper (Copper/Gold) and Gold/Silver ratios with independent date controls.
+
+    Futures Forward Curves: Dynamic visualization of term structures (Contango vs. Backwardation) using automated futures chain stitching.
+
+🛠️ Planned Enhancements (Roadmap)
+📈 Phase 1: Advanced Analytics
+
+    Overview Correlation Matrix: Develop a cross-asset correlation heatmap on the Overview page to link Equities, FX, and Commodities, identifying broad market trends.
+
+    FX Volatility Insights: Implement a volatility surface or historical volatility chart in the FX Hub to assess market "nervousness."
+
+⚙️ Phase 2: Data Optimization
+
+    Commodity Data Expansion: Move beyond Yahoo Finance for Commodities by integrating more specialized providers (e.g., Quandl or EIA) for better historical depth.
+
+    Enhanced Overview: Adding a "Macro Events" calendar or a correlation-based trend signal (e.g., Risk-On/Risk-Off meter).
+
+🎨 Phase 3: Realistic UI Refinements
+
+    Performance Optimization: Further refining the refresh_data.py job to handle larger datasets without slowing down the Streamlit UI.
+
+    Global Styling: Finalizing a unified CSS theme across all 5 pages for a seamless "Terminal" feel.
