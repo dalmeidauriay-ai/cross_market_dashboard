@@ -1,15 +1,15 @@
 csv_name,last_update
-FX_historical.csv,2026-01-16 01:06:48.142326
+FX_historical.csv,2026-01-17 01:03:39.489980
 stocks_history.csv,2026-01-06 01:09:29.933853
-indices_historical.csv,2026-01-16 01:08:05.337927
-us_yields.csv,2026-01-16 01:08:16.081047
-oecd_yields.csv,2026-01-16 01:08:20.496016
-FX_rate_matrix.csv,2026-01-16 01:08:20.776473
-stocks_snapshot.csv,2026-01-16 01:09:41.892835
-indices_snapshot.csv,2026-01-16 01:09:47.277468
+indices_historical.csv,2026-01-17 01:05:01.238582
+us_yields.csv,2026-01-17 01:05:20.767491
+oecd_yields.csv,2026-01-17 01:05:24.435019
+FX_rate_matrix.csv,2026-01-17 01:05:24.672733
+stocks_snapshot.csv,2026-01-17 01:06:47.399789
+indices_snapshot.csv,2026-01-17 01:06:50.641458
 monetary_policy_check,2026-01-14 01:13:09.165739
-hist_metals.csv,2026-01-16 01:09:55.260513
-hist_energy.csv,2026-01-16 01:09:55.260685
-hist_agriculture.csv,2026-01-16 01:09:55.260764
-futures_curves_check,2026-01-16 01:10:24.391481
-cross_asset_snapshot.csv,2026-01-16 01:09:50.332922
+hist_metals.csv,2026-01-17 01:07:00.098924
+hist_energy.csv,2026-01-17 01:07:00.099055
+hist_agriculture.csv,2026-01-17 01:07:00.099130
+futures_curves_check,2026-01-17 01:07:24.040643
+cross_asset_snapshot.csv,2026-01-17 01:06:53.697147
